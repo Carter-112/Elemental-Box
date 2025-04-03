@@ -29,7 +29,7 @@ const AcidElement = {
     // Called when the element is created
     updateOnCreate: function(particle) {
         particle.processed = false;
-        particle.potency = 1.0; // Full strength acid
+        particle.potency = 1.5; // Increased acid strength
         return particle;
     },
     
@@ -41,7 +41,7 @@ const AcidElement = {
         // Mark as processed
         grid[y][x].processed = true;
         
-        // Acid potency decreases over time
+        // Acid potency decreases more slowly over time
         if (grid[y][x].potency !== undefined) {
             if (grid[y][x].potency <= 0.1) {
                 // Acid becomes too diluted and turns to water
@@ -58,7 +58,7 @@ const AcidElement = {
                 return;
             }
         } else {
-            grid[y][x].potency = 1.0;
+            grid[y][x].potency = 1.5;
         }
         
         // Acid movement - falls with gravity
@@ -130,53 +130,52 @@ const AcidElement = {
             
             // Acid melts through ALL other materials (except water and other acid)
             if (grid[ny][nx].type !== 'acid' && grid[ny][nx].type !== 'water') {
-                // Corrode the material
-                grid[ny][nx] = null;
+                // ENHANCED: Corrode the material with more aggressive behavior
+                // Always dissolve the material regardless of type
+                const corrosionChance = 0.8; // Much higher chance to corrode
                 
-                // Produce acid gas in a random direction
-                const gasDirections = [
-                    { dx: -1, dy: -1 }, // top left
-                    { dx: 0, dy: -1 },  // top
-                    { dx: 1, dy: -1 },  // top right
-                    { dx: -1, dy: 0 },  // left
-                    { dx: 1, dy: 0 },   // right
-                ];
-                
-                const gasDir = gasDirections[Math.floor(Math.random() * gasDirections.length)];
-                const gasX = x + gasDir.dx;
-                const gasY = y + gasDir.dy;
-                
-                if (isInBounds(gasX, gasY) && !grid[gasY][gasX]) {
-                    grid[gasY][gasX] = {
-                        type: 'acid-gas',
-                        color: '#A6BAA9', // Acid gas color
-                        temperature: grid[y][x].temperature + 10,
-                        processed: true,
-                        isGas: true,
-                        isLiquid: false,
-                        isPowder: false,
-                        isSolid: false
-                    };
-                }
-                
-                // Acid dissipates when it melts materials (unlike lava)
-                grid[y][x].potency -= 0.3; // Increased potency reduction
-                
-                // Acid can completely disappear with small chance when melting dense materials
-                const isDense = ['metal', 'stone', 'brick', 'glass'].includes(grid[ny][nx]?.type);
-                if (isDense && Math.random() < 0.25) {
-                    grid[y][x] = null;
+                if (Math.random() < corrosionChance) {
+                    // Corrode the material
+                    grid[ny][nx] = null;
+                    
+                    // Produce acid gas in a random direction
+                    const gasDirections = [
+                        { dx: -1, dy: -1 }, // top left
+                        { dx: 0, dy: -1 },  // top
+                        { dx: 1, dy: -1 },  // top right
+                        { dx: -1, dy: 0 },  // left
+                        { dx: 1, dy: 0 },   // right
+                    ];
+                    
+                    const gasDir = gasDirections[Math.floor(Math.random() * gasDirections.length)];
+                    const gasX = x + gasDir.dx;
+                    const gasY = y + gasDir.dy;
+                    
+                    if (isInBounds(gasX, gasY) && !grid[gasY][gasX]) {
+                        grid[gasY][gasX] = {
+                            type: 'acid-gas',
+                            color: '#A6BAA9', // Acid gas color
+                            temperature: grid[y][x].temperature + 10,
+                            processed: true,
+                            isGas: true,
+                            isLiquid: false,
+                            isPowder: false,
+                            isSolid: false
+                        };
+                    }
+                    
+                    // Acid dissipates more slowly when it melts materials
+                    grid[y][x].potency -= 0.1; // Reduced potency reduction
+                    
+                    // Adjust color based on potency
+                    const potencyFactor = grid[y][x].potency;
+                    const r = Math.floor(143 * (1 - potencyFactor) + 143 * potencyFactor);
+                    const g = Math.floor(134 * (1 - potencyFactor) + 188 * potencyFactor);
+                    const b = Math.floor(228 * (1 - potencyFactor) + 143 * potencyFactor);
+                    grid[y][x].color = `rgb(${r}, ${g}, ${b})`;
+                    
                     return;
                 }
-                
-                // Adjust color based on potency
-                const potencyFactor = grid[y][x].potency;
-                const r = Math.floor(143 * (1 - potencyFactor) + 143 * potencyFactor);
-                const g = Math.floor(134 * (1 - potencyFactor) + 188 * potencyFactor);
-                const b = Math.floor(228 * (1 - potencyFactor) + 143 * potencyFactor);
-                grid[y][x].color = `rgb(${r}, ${g}, ${b})`;
-                
-                return;
             }
         }
     },

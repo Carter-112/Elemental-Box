@@ -9,7 +9,7 @@ const LavaElement = {
     defaultColor: '#FF4500',
     
     // Physical properties
-    density: 3.0,
+    density: 3.5, // Increased density to fall faster
     isGas: false,
     isLiquid: true,
     isPowder: false,
@@ -30,7 +30,7 @@ const LavaElement = {
     updateOnCreate: function(particle) {
         particle.processed = false;
         particle.temperature = this.temperature;
-        particle.viscosity = 0.85; // Very viscous
+        particle.viscosity = 0.5; // Reduced viscosity for faster flow
         particle.glowIntensity = 1.0; // Full glow when fresh
         return particle;
     },
@@ -49,7 +49,7 @@ const LavaElement = {
         }
         
         if (grid[y][x].viscosity === undefined) {
-            grid[y][x].viscosity = 0.85;
+            grid[y][x].viscosity = 0.5; // Reduced viscosity
         }
         
         if (grid[y][x].glowIntensity === undefined) {
@@ -58,7 +58,7 @@ const LavaElement = {
         
         // Lava slowly cools down over time
         if (grid[y][x].temperature > 700) {
-            grid[y][x].temperature -= 0.1;
+            grid[y][x].temperature -= 0.05; // Slower cooling rate
             
             // Update color and viscosity based on temperature
             const tempFactor = Math.min(1, (grid[y][x].temperature - 700) / 500);
@@ -69,7 +69,7 @@ const LavaElement = {
             grid[y][x].glowIntensity = tempFactor;
             
             // Lava becomes more viscous as it cools
-            grid[y][x].viscosity = 0.85 + ((1 - tempFactor) * 0.1);
+            grid[y][x].viscosity = 0.5 + ((1 - tempFactor) * 0.1);
         }
         
         // If lava gets extremely cold, turn to stone
@@ -89,31 +89,44 @@ const LavaElement = {
             return;
         }
         
-        // Heat transfer to neighboring cells
+        // Check for interactions with neighboring cells
         const neighbors = [
             { dx: -1, dy: 0 }, // left
             { dx: 1, dy: 0 },  // right
             { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-            { dx: -1, dy: -1 }, // top-left
-            { dx: 1, dy: -1 },  // top-right
-            { dx: -1, dy: 1 },  // bottom-left
-            { dx: 1, dy: 1 }    // bottom-right
+            { dx: 0, dy: 1 }   // down
         ];
         
-        // Process all neighbors
+        let totalHeat = 0;
+        let cellCount = 0;
+        
         for (const dir of neighbors) {
             const nx = x + dir.dx;
             const ny = y + dir.dy;
             
             if (!isInBounds(nx, ny)) continue;
             
-            // Heat up nearby cells
-            if (grid[ny][nx]) {
-                if (grid[ny][nx].temperature !== undefined) {
-                    const heatTransfer = (grid[y][x].temperature - grid[ny][nx].temperature) * 0.1;
-                    if (heatTransfer > 0) {
-                        grid[ny][nx].temperature += heatTransfer;
+            if (grid[ny][nx] && grid[ny][nx].temperature !== undefined) {
+                // Heat transfer to neighboring cells
+                const heatDifference = grid[y][x].temperature - grid[ny][nx].temperature;
+                if (heatDifference > 0) {
+                    // Lava heats up neighboring cells faster
+                    grid[ny][nx].temperature += heatDifference * 0.02;
+                    totalHeat += grid[ny][nx].temperature;
+                    cellCount++;
+                    
+                    // Have chance to set flammable neighbors on fire
+                    if (grid[ny][nx].flammable && Math.random() < 0.2) {
+                        grid[ny][nx] = {
+                            type: 'fire',
+                            color: '#FF9900',
+                            temperature: grid[y][x].temperature * 0.5,
+                            processed: true,
+                            isGas: true,
+                            isLiquid: false,
+                            isPowder: false,
+                            isSolid: false
+                        };
                     }
                 }
                 
@@ -157,7 +170,7 @@ const LavaElement = {
                         
                     default:
                         // Melt through ALL other materials
-                        if (Math.random() < 0.2) {
+                        if (Math.random() < 0.3) { // Increased melting chance
                             // Create appropriate effects based on material type
                             const isFlammable = grid[ny][nx].flammable || 
                                 ['wood', 'plant', 'oil', 'fuse'].includes(grid[ny][nx].type);
@@ -198,29 +211,45 @@ const LavaElement = {
                             const isDense = ['stone', 'brick', 'glass'].includes(grid[ny][nx]?.type);
                             
                             if (isMetal) {
-                                grid[y][x].temperature -= 40;
+                                grid[y][x].temperature -= 20; // Reduced cooling
                             } else if (isDense) {
-                                grid[y][x].temperature -= 20;
+                                grid[y][x].temperature -= 10; // Reduced cooling
                             } else {
-                                grid[y][x].temperature -= 10;
+                                grid[y][x].temperature -= 5; // Reduced cooling
                             }
                         }
                         break;
                 }
             } else {
                 // Create heat shimmer effects in empty spaces
-                if (Math.random() < 0.02) {
+                if (Math.random() < 0.05) { // Increased spawn rate for effects
                     const heatLevel = grid[y][x].temperature / 1200;
                     
-                    // Small chance to create fire/smoke above lava
-                    if (dir.dy < 0 && Math.random() < 0.1 * heatLevel) {
+                    // Higher chance to create fire/smoke above lava
+                    if (dir.dy < 0 && Math.random() < 0.2 * heatLevel) { // Increased chance
                         grid[ny][nx] = {
-                            type: Math.random() < 0.7 ? 'smoke' : 'fire',
-                            color: Math.random() < 0.7 ? '#999999' : '#FF9900',
+                            type: Math.random() < 0.5 ? 'smoke' : 'fire', // More fire than before
+                            color: Math.random() < 0.5 ? '#999999' : '#FF9900',
                             temperature: grid[y][x].temperature * 0.2,
                             processed: true,
                             isGas: true,
                             isLiquid: false,
+                            isPowder: false,
+                            isSolid: false
+                        };
+                    }
+                    
+                    // Chance to spawn more lava in neighboring empty cells
+                    if (dir.dy === 0 && Math.random() < 0.03) { // Small chance for horizontal spread
+                        grid[ny][nx] = {
+                            type: 'lava',
+                            color: grid[y][x].color,
+                            temperature: grid[y][x].temperature * 0.95,
+                            viscosity: grid[y][x].viscosity,
+                            glowIntensity: grid[y][x].glowIntensity,
+                            processed: true,
+                            isGas: false,
+                            isLiquid: true,
                             isPowder: false,
                             isSolid: false
                         };
@@ -231,8 +260,8 @@ const LavaElement = {
         
         // Lava movement - affected by viscosity
         if (y < grid.length - 1) {
-            // Only move if random check passes based on viscosity
-            if (Math.random() > grid[y][x].viscosity) {
+            // Increased chance to move down
+            if (Math.random() > grid[y][x].viscosity * 0.6) { // Lower factor for faster falling
                 // Try to move directly down
                 if (!grid[y + 1][x]) {
                     grid[y + 1][x] = grid[y][x];
@@ -242,8 +271,8 @@ const LavaElement = {
             }
         }
         
-        // Horizontal spread is even slower
-        if (Math.random() > grid[y][x].viscosity * 1.2) {
+        // Horizontal spread is faster than before
+        if (Math.random() > grid[y][x].viscosity * 0.8) { // Lower factor for more spread
             const direction = Math.random() < 0.5 ? -1 : 1;
             const nx = x + direction;
             
@@ -266,7 +295,7 @@ const LavaElement = {
         
         // Add glow effect
         if (glowIntensity > 0.1) {
-            const glowSize = cellSize * 1.5 * glowIntensity;
+            const glowSize = cellSize * 2.0 * glowIntensity; // Increased glow radius
             const gradient = ctx.createRadialGradient(
                 x * cellSize + cellSize / 2, 
                 y * cellSize + cellSize / 2, 
@@ -276,7 +305,7 @@ const LavaElement = {
                 glowSize
             );
             
-            gradient.addColorStop(0, `rgba(255, 200, 0, ${0.4 * glowIntensity})`);
+            gradient.addColorStop(0, `rgba(255, 200, 0, ${0.5 * glowIntensity})`); // Increased glow intensity
             gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
             
             ctx.fillStyle = gradient;
@@ -289,14 +318,14 @@ const LavaElement = {
         }
         
         // Add lighter patches to make it look molten
-        ctx.fillStyle = `rgba(255, 255, 0, ${0.3 * glowIntensity})`;
+        ctx.fillStyle = `rgba(255, 255, 0, ${0.4 * glowIntensity})`; // Increased brightness
         
         // Add a few random bright spots
-        const spotCount = 2 + Math.floor(Math.random() * 3);
+        const spotCount = 3 + Math.floor(Math.random() * 3); // More bright spots
         for (let i = 0; i < spotCount; i++) {
             const spotX = x * cellSize + Math.random() * cellSize;
             const spotY = y * cellSize + Math.random() * cellSize;
-            const spotSize = Math.max(1, Math.random() * cellSize / 4);
+            const spotSize = Math.max(1, Math.random() * cellSize / 3); // Larger bright spots
             
             ctx.beginPath();
             ctx.arc(spotX, spotY, spotSize, 0, Math.PI * 2);
