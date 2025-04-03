@@ -1,210 +1,200 @@
-// Acid element module
-window.AcidElement = {
+// Acid Element
+// A liquid that melts through everything but steel
+
+const AcidElement = {
     name: 'acid',
-    defaultColor: '#39FF14',  // Bright green color
-    density: 1.2,             // Slightly denser than water
-    durability: 0.5,
-    flammable: false,
-    defaultTemperature: 25,
-    stickiness: 0.1,
-    isLiquid: true,
-    isGas: false,
-    isPowder: false,
-    corrosiveStrength: 0.8,   // How corrosive the acid is
+    label: 'Acid',
+    description: 'A corrosive liquid that melts through most materials except steel',
+    category: 'liquid',
+    defaultColor: '#8FBC8F',
     
-    // Process acid particles
+    // Physical properties
+    density: 1.2,
+    isGas: false,
+    isLiquid: true,
+    isPowder: false,
+    isSolid: false,
+    isStatic: false,
+    isSpawner: false,
+    isElectrical: false,
+    
+    // Behavior properties
+    flammable: false,
+    conductive: true,
+    explosive: false,
+    reactive: true,
+    corrosive: true,
+    temperature: 25, // room temperature by default
+    
+    // Called when the element is created
+    updateOnCreate: function(particle) {
+        particle.processed = false;
+        particle.potency = 1.0; // Full strength acid
+        return particle;
+    },
+    
+    // Process the element's behavior
     process: function(x, y, grid, isInBounds) {
-        if (!grid[y][x] || grid[y][x].processed) return;
+        // Skip if already processed
+        if (grid[y][x].processed) return;
         
-        const acid = grid[y][x];
-        acid.processed = true;
+        // Mark as processed
+        grid[y][x].processed = true;
         
-        // Reduce acid potency over time
-        if (!acid.potency) {
-            acid.potency = 1.0;  // Initialize potency if not set
-        } else {
-            acid.potency -= 0.001;  // Slowly reduce potency
-        }
-        
-        // Acid evaporates when it loses its potency
-        if (acid.potency <= 0) {
-            grid[y][x] = null;
-            
-            // Chance to create smoke as acid evaporates
-            if (y > 0 && !grid[y-1][x] && Math.random() < 0.3) {
-                grid[y-1][x] = this.createSmokeParticle();
+        // Acid potency decreases over time
+        if (grid[y][x].potency !== undefined) {
+            if (grid[y][x].potency <= 0.1) {
+                // Acid becomes too diluted and turns to water
+                grid[y][x] = {
+                    type: 'water',
+                    color: '#4286f4',
+                    temperature: grid[y][x].temperature,
+                    processed: true,
+                    isGas: false,
+                    isLiquid: true,
+                    isPowder: false,
+                    isSolid: false
+                };
+                return;
             }
-            return;
+        } else {
+            grid[y][x].potency = 1.0;
         }
         
-        // Attempt to dissolve adjacent materials
-        this.dissolveAdjacent(x, y, grid, isInBounds);
-        
-        // Check if we can fall
-        if (y < grid.length - 1 && !grid[y+1][x]) {
-            grid[y+1][x] = acid;
-            grid[y][x] = null;
-            return;
-        }
-        
-        // Acid flows like water, but more aggressively
-        const directions = [
-            { dx: -1, dy: 1 }, // down-left
-            { dx: 1, dy: 1 },  // down-right
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 }   // right
-        ];
-        
-        // Shuffle the directions for more natural movement
-        for (let i = directions.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [directions[i], directions[j]] = [directions[j], directions[i]];
-        }
-        
-        // Try to move in one of the directions
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (isInBounds(newX, newY) && !grid[newY][newX]) {
-                grid[newY][newX] = acid;
+        // Acid movement - falls with gravity
+        if (y < grid.length - 1) {
+            // Try to move directly down
+            if (!grid[y + 1][x]) {
+                grid[y + 1][x] = grid[y][x];
                 grid[y][x] = null;
                 return;
             }
         }
         
-        // Acid can displace lighter liquids
-        if (y < grid.length - 1) {
-            const particleBelow = grid[y+1][x];
-            if (particleBelow && 
-                ((particleBelow.isLiquid && particleBelow.density < this.density) || 
-                 particleBelow.isGas)) {
+        // Acid spread - tries to move horizontally if can't move down
+        const spreadDistance = 3; // How far acid can spread
+        const directions = [
+            { dx: -1, priority: Math.random() < 0.5 ? 1 : 2 }, // left
+            { dx: 1, priority: Math.random() < 0.5 ? 1 : 2 }   // right
+        ];
+        
+        // Sort by priority (randomized)
+        directions.sort((a, b) => a.priority - b.priority);
+        
+        // Try to spread in the prioritized directions
+        for (const dir of directions) {
+            // Try spreading outward
+            for (let distance = 1; distance <= spreadDistance; distance++) {
+                const nx = x + (dir.dx * distance);
                 
-                // Swap positions
-                grid[y][x] = particleBelow;
-                grid[y+1][x] = acid;
-                particleBelow.processed = true;
+                // Check if out of bounds
+                if (!isInBounds(nx, y)) break;
+                
+                // If there's a space at this level, move there
+                if (!grid[y][nx]) {
+                    grid[y][nx] = grid[y][x];
+                    grid[y][x] = null;
+                    return;
+                }
+                
+                // If there's a space below this position, flow there
+                if (y < grid.length - 1 && !grid[y + 1][nx]) {
+                    grid[y + 1][nx] = grid[y][x];
+                    grid[y][x] = null;
+                    return;
+                }
+                
+                // If there's a solid/different density particle, stop spreading in this direction
+                if (grid[y][nx] && (grid[y][nx].type !== 'acid' || grid[y][nx].processed)) {
+                    break;
+                }
+            }
+        }
+        
+        // Acid corrodes through materials
+        const neighbors = [
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 },  // right
+            { dx: 0, dy: -1 }, // up
+            { dx: 0, dy: 1 }   // down
+        ];
+        
+        for (const dir of neighbors) {
+            const nx = x + dir.dx;
+            const ny = y + dir.dy;
+            
+            if (!isInBounds(nx, ny) || !grid[ny][nx]) continue;
+            
+            // Acid doesn't corrode steel
+            if (grid[ny][nx].type === 'steel') continue;
+            
+            // Acid produces gas when melting materials
+            if (grid[ny][nx].type !== 'acid' && grid[ny][nx].type !== 'water') {
+                // Corrode the material
+                grid[ny][nx] = null;
+                
+                // Produce acid gas in a random direction
+                const gasDirections = [
+                    { dx: -1, dy: -1 }, // top left
+                    { dx: 0, dy: -1 },  // top
+                    { dx: 1, dy: -1 },  // top right
+                    { dx: -1, dy: 0 },  // left
+                    { dx: 1, dy: 0 },   // right
+                ];
+                
+                const gasDir = gasDirections[Math.floor(Math.random() * gasDirections.length)];
+                const gasX = x + gasDir.dx;
+                const gasY = y + gasDir.dy;
+                
+                if (isInBounds(gasX, gasY) && !grid[gasY][gasX]) {
+                    grid[gasY][gasX] = {
+                        type: 'smoke',
+                        color: '#A6BAA9', // Acid gas color
+                        temperature: grid[y][x].temperature + 10,
+                        processed: true,
+                        isGas: true,
+                        isLiquid: false,
+                        isPowder: false,
+                        isSolid: false
+                    };
+                }
+                
+                // Reduce acid potency after corrosion
+                grid[y][x].potency -= 0.2;
+                
+                // Adjust color based on potency
+                const potencyFactor = grid[y][x].potency;
+                const r = Math.floor(143 * (1 - potencyFactor) + 143 * potencyFactor);
+                const g = Math.floor(134 * (1 - potencyFactor) + 188 * potencyFactor);
+                const b = Math.floor(228 * (1 - potencyFactor) + 143 * potencyFactor);
+                grid[y][x].color = `rgb(${r}, ${g}, ${b})`;
+                
                 return;
             }
         }
     },
     
-    // Dissolve adjacent materials
-    dissolveAdjacent: function(x, y, grid, isInBounds) {
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-            { dx: -1, dy: -1 }, // up-left
-            { dx: 1, dy: -1 },  // up-right
-            { dx: -1, dy: 1 },  // down-left
-            { dx: 1, dy: 1 }    // down-right
-        ];
+    // Optional custom rendering function
+    render: function(ctx, x, y, particle, cellSize) {
+        // Acid is slightly transparent and has a bubbling effect
+        ctx.fillStyle = particle.color || this.defaultColor;
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         
-        const acid = grid[y][x];
-        
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (!isInBounds(newX, newY) || !grid[newY][newX]) continue;
-            
-            const target = grid[newY][newX];
-            
-            // Skip if it's another acid particle
-            if (target.type === 'acid') continue;
-            
-            // Materials that are resistant to acid
-            if (target.type === 'glass' || 
-                target.type === 'crystal' || 
-                target.type === 'static' ||
-                target.type === 'eraser') {
-                continue;
-            }
-            
-            // Metal and steel are highly resistant but can be dissolved with repeated exposure
-            if ((target.type === 'metal' || target.type === 'steel') && Math.random() > acid.potency * 0.2) {
-                continue;
-            }
-            
-            // Calculate chance to dissolve based on corrosive strength, potency, and material durability
-            const targetDurability = target.durability || 0.5;
-            const dissolveChance = acid.potency * this.corrosiveStrength * (1 - targetDurability * 0.5);
-            
-            if (Math.random() < dissolveChance) {
-                // Dissolve the material
-                grid[newY][newX] = null;
-                
-                // Reduce potency when dissolving something
-                acid.potency -= 0.1;
-                
-                // Chance to create gas when acid reacts with some materials
-                if (Math.random() < 0.3 && !grid[newY-1] && !grid[newY-1][newX]) {
-                    grid[newY-1][newX] = this.createSmokeParticle();
-                }
-                
-                // If potency gets too low, remove the acid
-                if (acid.potency <= 0) {
-                    grid[y][x] = null;
-                    return;
-                }
-            }
-        }
-    },
-    
-    // Create smoke particle
-    createSmokeParticle: function() {
-        return {
-            type: 'smoke',
-            color: '#ADFF2F',  // Greenish smoke
-            temperature: 25,
-            processed: false,
-            burnDuration: 60,
-            flammable: false,
-            density: 0.3,
-            isGas: true
-        };
-    },
-    
-    // Custom rendering for acid
-    render: function(ctx, x, y, particle, CELL_SIZE) {
-        // Base acid color with potency affecting opacity
-        const potency = particle.potency || 1.0;
-        ctx.fillStyle = `rgba(57, 255, 20, ${0.6 + potency * 0.4})`;
-        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        
-        // Add bubbling effect 
-        const numBubbles = Math.floor(potency * 3) + 1;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        
-        for (let i = 0; i < numBubbles; i++) {
-            // Use a deterministic but "random-looking" position based on frame count
-            const bubbleX = x * CELL_SIZE + (Math.sin(Date.now() * 0.01 + i * 1.5) * 0.4 + 0.5) * CELL_SIZE;
-            const bubbleY = y * CELL_SIZE + (Math.cos(Date.now() * 0.01 + i * 1.5) * 0.4 + 0.5) * CELL_SIZE;
-            const bubbleSize = CELL_SIZE * (0.1 + Math.sin(Date.now() * 0.02 + i) * 0.05);
-            
+        // Add bubbles
+        if (Math.random() < 0.3) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            const bubbleSize = cellSize / 4;
+            const bubbleX = x * cellSize + Math.random() * (cellSize - bubbleSize);
+            const bubbleY = y * cellSize + Math.random() * (cellSize - bubbleSize);
             ctx.beginPath();
             ctx.arc(bubbleX, bubbleY, bubbleSize, 0, Math.PI * 2);
             ctx.fill();
         }
         
-        // Add glow effect based on potency
-        if (potency > 0.6) {
-            ctx.fillStyle = `rgba(57, 255, 20, ${(potency - 0.6) * 0.3})`;
-            ctx.fillRect(
-                x * CELL_SIZE - CELL_SIZE * 0.15, 
-                y * CELL_SIZE - CELL_SIZE * 0.15, 
-                CELL_SIZE * 1.3, 
-                CELL_SIZE * 1.3
-            );
-        }
-    },
-    
-    // Update particle on creation
-    updateOnCreate: function(particle) {
-        particle.potency = 1.0;  // Full potency when created
-        particle.temperature = this.defaultTemperature;
-        return particle;
+        ctx.globalAlpha = 1.0;
     }
-}; 
+};
+
+// Make the element available globally
+window.AcidElement = AcidElement; 

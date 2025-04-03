@@ -55,14 +55,15 @@ const ElementLoader = {
         // List of environmental elements to exclude from particle selection
         const excludedElements = ['wind', 'heat', 'cold'];
         
-        // Define categories and their labels
+        // Define categories and their labels in the exact order requested
         const categories = {
-            gas: { label: 'Gas', elements: [] },
+            eraser: { label: 'Eraser', elements: [] },
+            'solid-powder': { label: 'Solid Powder', elements: [] },
             solid: { label: 'Solid', elements: [] },
-            solidPowder: { label: 'Solid Powder', elements: [] },
+            gas: { label: 'Gas', elements: [] },
+            'solid-spawner': { label: 'Spawners', elements: [] },
             liquid: { label: 'Liquid', elements: [] },
-            environmental: { label: 'Environmental Tools', elements: [] },
-            other: { label: 'Other', elements: [] }
+            electrical: { label: 'Electrical', elements: [] }
         };
         
         // Categorize elements based on their properties
@@ -75,17 +76,35 @@ const ElementLoader = {
             const element = window.ElementRegistry ? window.ElementRegistry.getElement(elementName) : null;
             if (!element) return;
             
-            // Determine category based on element properties
-            if (element.isGas) {
+            // If the element has a category defined, use that directly
+            if (element.category && categories[element.category]) {
+                categories[element.category].elements.push(elementName);
+                return;
+            }
+            
+            // Otherwise determine category based on element properties
+            if (elementName === 'eraser') {
+                categories.eraser.elements.push(elementName);
+            } else if (element.isSpawner || elementName === 'faucet' || elementName === 'torch') {
+                categories['solid-spawner'].elements.push(elementName);
+            } else if (element.isGas || elementName === 'fire' || elementName === 'bubble' || 
+                       elementName === 'balloon' || elementName === 'steam' || elementName === 'smoke') {
                 categories.gas.elements.push(elementName);
-            } else if (element.isLiquid) {
+            } else if (element.isLiquid || elementName === 'acid' || elementName === 'glue' || 
+                      elementName === 'lava' || elementName === 'napalm' || elementName === 'oil' || 
+                      elementName === 'tar' || elementName === 'water' || elementName === 'sludge') {
                 categories.liquid.elements.push(elementName);
-            } else if (element.isPowder) {
-                categories.solidPowder.elements.push(elementName);
-            } else if (element.isSolid !== false) { // Default to solid if not explicitly marked otherwise
-                categories.solid.elements.push(elementName);
+            } else if (element.isPowder || elementName === 'bacteria' || elementName === 'fertilizer' || 
+                      elementName === 'explosive-powder' || elementName === 'gunpowder' || 
+                      elementName === 'glass-shard' || elementName === 'salt' || 
+                      elementName === 'sand' || elementName === 'snow' || elementName === 'ash' ||
+                      elementName === 'static-charge') {
+                categories['solid-powder'].elements.push(elementName);
+            } else if (element.isElectrical || elementName === 'battery' || elementName === 'bulb' || 
+                      elementName === 'switch' || elementName === 'wire') {
+                categories.electrical.elements.push(elementName);
             } else {
-                categories.other.elements.push(elementName);
+                categories.solid.elements.push(elementName);
             }
         });
         
@@ -123,6 +142,26 @@ const ElementLoader = {
                 const colorIndicator = document.createElement('div');
                 colorIndicator.className = 'element-color';
                 colorIndicator.style.backgroundColor = element.defaultColor;
+                
+                // Special case for eraser - make it have a contrasting outline
+                if (elementName === 'eraser') {
+                    colorIndicator.style.backgroundColor = 'transparent';
+                    colorIndicator.style.border = '2px dashed #fff';
+                    colorIndicator.style.boxSizing = 'border-box';
+                    
+                    // Add event listener to the dark mode toggle to update eraser style
+                    const darkModeToggle = document.getElementById('dark-mode-toggle');
+                    if (darkModeToggle) {
+                        const updateEraserStyle = () => {
+                            const isDarkMode = document.body.classList.contains('dark-mode');
+                            colorIndicator.style.border = `2px dashed ${isDarkMode ? '#fff' : '#000'}`;
+                        };
+                        
+                        // Apply initially and on change
+                        updateEraserStyle();
+                        darkModeToggle.addEventListener('change', updateEraserStyle);
+                    }
+                }
                 
                 // Handle special cases for visibility (like smoke, glass, etc.)
                 if (element.isGas || (element.transparency && element.transparency > 0.5)) {
@@ -286,6 +325,19 @@ const ElementLoader = {
                     continue;
                 }
                 
+                // Special handling for switch element - allow clicking to toggle it
+                if (grid[gridY][gridX] && grid[gridY][gridX].type === 'switch') {
+                    if (activeType !== 'eraser') {
+                        // Toggle switch state instead of placing an element
+                        if (!grid[gridY][gridX].toggled) {
+                            grid[gridY][gridX].toggled = true;
+                        } else {
+                            grid[gridY][gridX].toggled = false;
+                        }
+                        continue;
+                    }
+                }
+                
                 // If override is not enabled, only place if cell is empty
                 if (!overrideMode && grid[gridY][gridX] !== null) continue;
                 
@@ -295,6 +347,11 @@ const ElementLoader = {
                     grid[gridY][gridX] = particle;
                 }
             }
+        }
+        
+        // Force a redraw to immediately show changes (especially important when paused)
+        if (window.drawParticles && typeof window.drawParticles === 'function') {
+            window.drawParticles();
         }
     },
     

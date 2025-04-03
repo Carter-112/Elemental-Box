@@ -1,121 +1,156 @@
-// Glue element module
-window.GlueElement = {
+// Glue Element
+// A slow-moving sticky liquid that solidifies with cold
+
+const GlueElement = {
     name: 'glue',
-    defaultColor: '#f4f4e0', // Off-white
-    density: 1.2,           // Slightly denser than water
-    durability: 0.4,
-    flammable: true,
-    defaultTemperature: 25,
-    stickiness: 1.0,         // Very sticky
-    isLiquid: true,
-    isGas: false,
-    isPowder: false,
+    label: 'Glue',
+    description: 'A sticky liquid that hardens with cold and melts in water',
+    category: 'liquid',
+    defaultColor: '#F5F5DC',
     
-    // Process glue particles
-    process: function(x, y, grid, isInBounds) {
-        if (!grid[y][x] || grid[y][x].processed) return;
-        
-        const glue = grid[y][x];
-        glue.processed = true;
-        
-        // Glue can dry and harden over time
-        if (this.shouldDry(x, y, glue, grid, isInBounds)) {
-            this.hardenGlue(x, y, grid);
-            return;
-        }
-        
-        // Glue moves like a liquid, but stickier
-        this.moveLikeStickyLiquid(x, y, grid, isInBounds);
-        
-        // Glue sticks to particles it touches
-        this.stickToParticles(x, y, grid, isInBounds);
+    // Physical properties
+    density: 1.3,
+    isGas: false,
+    isLiquid: true,
+    isPowder: false,
+    isSolid: false,
+    isStatic: false,
+    isSpawner: false,
+    isElectrical: false,
+    
+    // Behavior properties
+    flammable: false,
+    conductive: false,
+    explosive: false,
+    reactive: true,
+    corrosive: false,
+    temperature: 25, // room temperature by default
+    
+    // Called when the element is created
+    updateOnCreate: function(particle) {
+        particle.processed = false;
+        particle.viscosity = 0.9; // Very high viscosity (0-1)
+        particle.stickiness = 0.8; // How sticky the glue is (0-1)
+        particle.solidity = 0; // How solid it is (0-1), 0 = liquid, 1 = solid
+        return particle;
     },
     
-    // Check if glue should dry and harden
-    shouldDry: function(x, y, glue, grid, isInBounds) {
-        // Initialize or increment dry counter
-        glue.dryCounter = glue.dryCounter || 0;
+    // Process the element's behavior
+    process: function(x, y, grid, isInBounds) {
+        // Skip if already processed
+        if (grid[y][x].processed) return;
         
-        // Glue dries faster in higher temperatures
-        const dryIncrement = glue.temperature > 50 ? 2 : 1;
-        glue.dryCounter += dryIncrement;
+        // Mark as processed
+        grid[y][x].processed = true;
         
-        // Check surrounding air (empty spaces) to determine drying speed
-        let airExposure = 0;
+        // Initialize properties if not set
+        if (grid[y][x].viscosity === undefined) {
+            grid[y][x].viscosity = 0.9;
+        }
         
-        const directions = [
+        if (grid[y][x].stickiness === undefined) {
+            grid[y][x].stickiness = 0.8;
+        }
+        
+        if (grid[y][x].solidity === undefined) {
+            grid[y][x].solidity = 0;
+        }
+        
+        // Temperature affects viscosity and solidity
+        if (grid[y][x].temperature < 10) {
+            // Cold glue starts to harden
+            grid[y][x].solidity = Math.min(1, grid[y][x].solidity + 0.02);
+            grid[y][x].viscosity = Math.min(0.99, grid[y][x].viscosity + 0.01);
+            
+            // Update color to show hardening
+            const solidityFactor = grid[y][x].solidity;
+            grid[y][x].color = `rgb(${245 - solidityFactor * 40}, ${245 - solidityFactor * 40}, ${220 - solidityFactor * 40})`;
+            
+            // If fully hardened, become solid
+            if (grid[y][x].solidity >= 1.0) {
+                grid[y][x].isLiquid = false;
+                grid[y][x].isSolid = true;
+                return;
+            }
+        } else if (grid[y][x].temperature > 30) {
+            // Warm glue becomes more fluid
+            grid[y][x].solidity = Math.max(0, grid[y][x].solidity - 0.02);
+            grid[y][x].viscosity = Math.max(0.6, grid[y][x].viscosity - 0.01);
+            
+            // Update color to show softening
+            const solidityFactor = grid[y][x].solidity;
+            grid[y][x].color = `rgb(${245 - solidityFactor * 40}, ${245 - solidityFactor * 40}, ${220 - solidityFactor * 40})`;
+        }
+        
+        // Check interactions with other elements
+        const neighbors = [
             { dx: -1, dy: 0 }, // left
             { dx: 1, dy: 0 },  // right
             { dx: 0, dy: -1 }, // up
             { dx: 0, dy: 1 },  // down
+            { dx: -1, dy: -1 }, // top-left
+            { dx: 1, dy: -1 },  // top-right
+            { dx: -1, dy: 1 },  // bottom-left
+            { dx: 1, dy: 1 }    // bottom-right
         ];
         
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
+        // Check neighbor interactions
+        for (const dir of neighbors) {
+            const nx = x + dir.dx;
+            const ny = y + dir.dy;
             
-            if (!isInBounds(newX, newY)) continue;
+            if (!isInBounds(nx, ny) || !grid[ny][nx]) continue;
             
-            // Count empty spaces as air exposure
-            if (!grid[newY][newX]) {
-                airExposure++;
+            // Water dissolves glue
+            if (grid[ny][nx].type === 'water') {
+                // Glue becomes diluted and gradually disappears
+                grid[y][x].stickiness -= 0.05;
+                grid[y][x].viscosity -= 0.05;
+                
+                // Water becomes slightly cloudy
+                grid[ny][nx].color = '#E6E6FA';
+                
+                // If too diluted, glue disappears
+                if (grid[y][x].stickiness <= 0 || grid[y][x].viscosity <= 0.1) {
+                    grid[y][x] = null;
+                    return;
+                }
+            }
+            
+            // Items can stick to glue
+            if (grid[ny][nx] && !grid[ny][nx].isStatic && Math.random() < grid[y][x].stickiness * 0.1) {
+                // Make the other particle stick by reducing its movement chance
+                if (!grid[ny][nx].stuckInGlue) {
+                    grid[ny][nx].stuckInGlue = true;
+                    grid[ny][nx].originalMovementChance = 0.2; // Store for later
+                    grid[ny][nx].movementChance = 0.01; // Very low chance to move
+                }
             }
         }
         
-        // Adjust drying counter based on air exposure
-        glue.dryCounter += airExposure * 0.1;
-        
-        // Determine if it's dry enough to harden
-        return glue.dryCounter >= 50;
-    },
-    
-    // Harden glue into a solid
-    hardenGlue: function(x, y, grid) {
-        // Create hardened glue
-        grid[y][x] = {
-            type: 'glue',
-            color: '#e9e9d5', // Slightly darker when dry
-            temperature: grid[y][x].temperature,
-            processed: true,
-            isLiquid: false,
-            isGas: false,
-            isPowder: false,
-            density: 1.0,
-            stickiness: 0.7, // Still sticky but less than liquid glue
-            hardened: true,
-            joiningParticles: grid[y][x].joiningParticles || []
-        };
-    },
-    
-    // Move like a liquid but with stickiness
-    moveLikeStickyLiquid: function(x, y, grid, isInBounds) {
-        // Skip if hardened
-        if (grid[y][x].hardened) return;
-        
-        // Don't move if joining particles (actively sticking things together)
-        if (grid[y][x].joiningParticles && grid[y][x].joiningParticles.length > 1) {
-            return;
-        }
-        
-        // Liquid movement - try to fall down first
-        if (y < grid.length - 1 && !grid[y+1][x]) {
-            // Fall rate depends on stickiness - glue falls slower
-            if (Math.random() < 0.7) { // 70% chance to fall (water would be 90%)
-                grid[y+1][x] = grid[y][x];
-                grid[y][x] = null;
-                return;
+        // Glue movement - affected by viscosity and solidity
+        if (grid[y][x].solidity < 0.5) {
+            // Can still flow, but slowly
+            if (y < grid.length - 1) {
+                // Only move down if random check passes based on viscosity
+                // Higher viscosity = less likely to move
+                if (Math.random() > grid[y][x].viscosity) {
+                    // Try to move directly down
+                    if (!grid[y + 1][x]) {
+                        grid[y + 1][x] = grid[y][x];
+                        grid[y][x] = null;
+                        return;
+                    }
+                }
             }
-        }
-        
-        // Try to spread horizontally, but less likely than water
-        if (Math.random() < 0.3) { // 30% chance to spread (water would be 50%)
-            const direction = Math.random() < 0.5 ? -1 : 1;
-            const newX = x + direction;
             
-            if (isInBounds(newX, y) && !grid[y][newX]) {
-                // Check if there's support below or if we're at bottom
-                if (y >= grid.length - 1 || grid[y+1][newX]) {
-                    grid[y][newX] = grid[y][x];
+            // Horizontal spread is even slower
+            if (Math.random() > grid[y][x].viscosity * 1.5) {
+                const direction = Math.random() < 0.5 ? -1 : 1;
+                const nx = x + direction;
+                
+                if (isInBounds(nx, y) && !grid[y][nx]) {
+                    grid[y][nx] = grid[y][x];
                     grid[y][x] = null;
                     return;
                 }
@@ -123,118 +158,41 @@ window.GlueElement = {
         }
     },
     
-    // Stick to particles that the glue touches
-    stickToParticles: function(x, y, grid, isInBounds) {
-        // Skip if already hardened
-        if (grid[y][x].hardened) return;
+    // Custom rendering function
+    render: function(ctx, x, y, particle, cellSize) {
+        // Base glue color with transparency to show stickiness
+        ctx.fillStyle = particle.color || this.defaultColor;
         
-        // Check surrounding cells
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-            { dx: -1, dy: -1 }, // up-left
-            { dx: 1, dy: -1 },  // up-right
-            { dx: -1, dy: 1 },  // down-left
-            { dx: 1, dy: 1 }    // down-right
-        ];
+        // Adjust opacity based on solidity - more solid = more opaque
+        const solidity = particle.solidity || 0;
+        ctx.globalAlpha = 0.6 + (solidity * 0.4);
         
-        // Track particles that are being joined by this glue
-        grid[y][x].joiningParticles = grid[y][x].joiningParticles || [];
+        // Draw the main body
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (!isInBounds(newX, newY)) continue;
-            
-            const neighbor = grid[newY][newX];
-            if (!neighbor) continue;
-            
-            // Skip other glue particles
-            if (neighbor.type === 'glue') continue;
-            
-            // Skip gas particles (can't stick to gases)
-            if (neighbor.isGas) continue;
-            
-            // Add to joining particles
-            const particleId = `${newX},${newY}`;
-            if (!grid[y][x].joiningParticles.includes(particleId)) {
-                grid[y][x].joiningParticles.push(particleId);
-            }
-            
-            // Add stickiness to the particle (make it harder to move)
-            neighbor.sticky = true;
-            
-            // If joining more than one particle, start drying faster
-            if (grid[y][x].joiningParticles.length > 1) {
-                // Accelerate drying
-                grid[y][x].dryCounter = (grid[y][x].dryCounter || 0) + 2;
-            }
-        }
-    },
-    
-    // Custom rendering for glue
-    render: function(ctx, x, y, particle, CELL_SIZE) {
-        // Different appearance based on whether it's hardened
-        if (particle.hardened) {
-            // Hardened glue
-            ctx.fillStyle = particle.color;
-            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            
-            // Add texture for hardened glue
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-            ctx.fillRect(
-                x * CELL_SIZE + CELL_SIZE * 0.25, 
-                y * CELL_SIZE + CELL_SIZE * 0.25, 
-                CELL_SIZE * 0.5, 
-                CELL_SIZE * 0.5
-            );
-        } else {
-            // Liquid glue
-            ctx.fillStyle = particle.color;
-            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            
-            // Glossy shine effect
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.beginPath();
-            ctx.arc(
-                x * CELL_SIZE + CELL_SIZE * 0.3,
-                y * CELL_SIZE + CELL_SIZE * 0.3,
-                CELL_SIZE * 0.2,
-                0,
-                Math.PI * 2
-            );
-            ctx.fill();
-        }
-        
-        // Show connections if joining particles
-        if (particle.joiningParticles && particle.joiningParticles.length > 1) {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        // Draw sticky strands if glue is still somewhat liquid
+        if (solidity < 0.8) {
+            ctx.strokeStyle = `rgba(255, 255, 255, 0.5)`;
             ctx.lineWidth = 1;
             
-            particle.joiningParticles.forEach(id => {
-                const [nx, ny] = id.split(',').map(Number);
-                const centerX = x * CELL_SIZE + CELL_SIZE / 2;
-                const centerY = y * CELL_SIZE + CELL_SIZE / 2;
-                const targetX = nx * CELL_SIZE + CELL_SIZE / 2;
-                const targetY = ny * CELL_SIZE + CELL_SIZE / 2;
+            // Draw 2-3 random sticky strands
+            const strandCount = 2 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < strandCount; i++) {
+                const startX = x * cellSize + Math.random() * cellSize;
+                const startY = y * cellSize + Math.random() * cellSize / 2;
+                const length = cellSize * (0.2 + Math.random() * 0.3);
                 
                 ctx.beginPath();
-                ctx.moveTo(centerX, centerY);
-                ctx.lineTo(targetX, targetY);
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(startX, startY + length);
                 ctx.stroke();
-            });
+            }
         }
-    },
-    
-    // Update particle on creation
-    updateOnCreate: function(particle) {
-        particle.temperature = this.defaultTemperature;
-        particle.dryCounter = 0;
-        particle.hardened = false;
-        particle.joiningParticles = [];
-        return particle;
+        
+        // Reset opacity
+        ctx.globalAlpha = 1.0;
     }
-}; 
+};
+
+// Make the element available globally
+window.GlueElement = GlueElement; 

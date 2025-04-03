@@ -1,338 +1,261 @@
-// Sludge element module
-window.SludgeElement = {
+// Sludge Element
+// A dirty, muddy liquid that moves slowly and has high density
+
+const SludgeElement = {
     name: 'sludge',
-    defaultColor: '#4b6a36', // Murky green
-    density: 1.3,
-    durability: 0.7,
-    flammable: false,
-    defaultTemperature: 25,
-    stickiness: 0.7,
-    isLiquid: true,
+    label: 'Sludge',
+    description: 'A slow-moving, dense, muddy liquid',
+    category: 'liquid',
+    defaultColor: '#5D4037',
+    
+    // Physical properties
+    density: 2.2, // Very dense
     isGas: false,
+    isLiquid: true,
     isPowder: false,
-    isToxic: true,
-    toxicity: 0.8, // 0-1 scale
-    spreadRate: 0.3, // How quickly it contaminates other elements
-    viscosity: 0.8, // Not as viscous as tar, but still thick
+    isSolid: false,
+    isStatic: false,
+    isSpawner: false,
+    isElectrical: false,
     
-    // Process sludge particles
+    // Behavior properties
+    flammable: false,
+    conductive: false,
+    explosive: false,
+    reactive: true,
+    corrosive: false,
+    temperature: 25, // room temperature by default
+    
+    // Called when the element is created
+    updateOnCreate: function(particle) {
+        particle.processed = false;
+        particle.viscosity = 0.95; // Very high viscosity (0-1)
+        particle.contaminationLevel = 0.8; // How dirty/toxic it is (0-1)
+        particle.hasDebris = Math.random() < 0.3; // 30% chance to contain visible debris
+        return particle;
+    },
+    
+    // Process the element's behavior
     process: function(x, y, grid, isInBounds) {
-        if (!grid[y][x] || grid[y][x].processed) return;
+        // Skip if already processed
+        if (grid[y][x].processed) return;
         
-        const sludge = grid[y][x];
-        sludge.processed = true;
+        // Mark as processed
+        grid[y][x].processed = true;
         
-        // Sludge reacts with extreme heat by evaporating into toxic gas
-        if (sludge.temperature > 200) {
-            this.evaporateIntoToxicGas(x, y, grid, isInBounds);
-            return;
+        // Initialize properties if not set
+        if (grid[y][x].viscosity === undefined) {
+            grid[y][x].viscosity = 0.95;
         }
         
-        // Solidifies in extreme cold
-        if (sludge.temperature < -10 && !sludge.solidified) {
-            this.solidifySludge(x, y, grid);
-            return;
+        if (grid[y][x].contaminationLevel === undefined) {
+            grid[y][x].contaminationLevel = 0.8;
         }
         
-        // Thaws if previously solidified
-        if (sludge.solidified && sludge.temperature > 0) {
-            sludge.solidified = false;
-            sludge.isLiquid = true;
+        if (grid[y][x].hasDebris === undefined) {
+            grid[y][x].hasDebris = Math.random() < 0.3;
         }
         
-        // Sludge moves like a semi-viscous liquid if not solidified
-        if (!sludge.solidified) {
-            this.moveLikeSemiViscousLiquid(x, y, grid, isInBounds);
-        }
-        
-        // Contaminate nearby elements
-        this.contaminateNearby(x, y, grid, isInBounds);
-        
-        // Emit toxic gas occasionally
-        if (Math.random() < 0.01 && y > 0 && !grid[y-1][x]) {
-            this.emitToxicGas(x, y-1, grid);
-        }
-    },
-    
-    // Evaporate into toxic gas when heated
-    evaporateIntoToxicGas: function(x, y, grid, isInBounds) {
-        // Remove the sludge particle
-        grid[y][x] = null;
-        
-        // Create toxic gas in and around the previous position
-        const gasPositions = [
-            { dx: 0, dy: 0 },  // current position
-            { dx: 0, dy: -1 }, // above
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-        ];
-        
-        for (const pos of gasPositions) {
-            const newX = x + pos.dx;
-            const newY = y + pos.dy;
+        // Temperature affects viscosity
+        if (grid[y][x].temperature > 50) {
+            // Heat makes sludge more fluid
+            grid[y][x].viscosity = Math.max(0.75, grid[y][x].viscosity - 0.001);
+        } else if (grid[y][x].temperature < 0) {
+            // Cold makes sludge more solid
+            grid[y][x].viscosity = Math.min(0.99, grid[y][x].viscosity + 0.001);
             
-            if (isInBounds(newX, newY) && (!grid[newY][newX] || Math.random() < 0.7)) {
-                grid[newY][newX] = {
-                    type: 'toxicGas',
-                    color: '#879e66', // Lighter green for gas
-                    temperature: 100,
-                    processed: false,
-                    isGas: true,
-                    isToxic: true,
-                    density: 0.3,
-                    lifetime: 200 + Math.floor(Math.random() * 100),
-                    age: 0,
-                    toxicity: 0.9 // More toxic as gas
+            // Extremely cold temperatures can turn sludge to solid
+            if (grid[y][x].temperature < -10 && Math.random() < 0.01) {
+                // Convert to mud solid
+                grid[y][x] = {
+                    type: 'stone',
+                    color: '#3E2723',
+                    temperature: grid[y][x].temperature,
+                    processed: true,
+                    isGas: false,
+                    isLiquid: false,
+                    isPowder: false,
+                    isSolid: true,
+                    isStatic: true
                 };
-            }
-        }
-    },
-    
-    // Emit a small amount of toxic gas
-    emitToxicGas: function(x, y, grid) {
-        grid[y][x] = {
-            type: 'toxicGas',
-            color: '#879e66', // Lighter green for gas
-            temperature: grid[y+1][x].temperature, // Same temp as the sludge
-            processed: false,
-            isGas: true,
-            isToxic: true,
-            density: 0.3,
-            lifetime: 100 + Math.floor(Math.random() * 50),
-            age: 0,
-            toxicity: 0.7
-        };
-    },
-    
-    // Solidify sludge into a solid form
-    solidifySludge: function(x, y, grid) {
-        grid[y][x].solidified = true;
-        grid[y][x].isLiquid = false; // No longer behaves as a liquid
-        grid[y][x].color = '#32492a'; // Darker when solidified
-    },
-    
-    // Move like a semi-viscous liquid
-    moveLikeSemiViscousLiquid: function(x, y, grid, isInBounds) {
-        // Medium viscosity means moderate movement
-        const flowChance = 0.9 - this.viscosity; // Higher viscosity = lower chance to flow
-        
-        // Liquid movement - try to fall down first
-        if (y < grid.length - 1 && !grid[y+1][x]) {
-            if (Math.random() < flowChance * 1.5) { // More likely to fall than spread
-                grid[y+1][x] = grid[y][x];
-                grid[y][x] = null;
                 return;
             }
         }
         
-        // Try to spread horizontally
-        if (Math.random() < flowChance) {
-            const direction = Math.random() < 0.5 ? -1 : 1;
-            const newX = x + direction;
+        // Check interactions with other elements
+        const neighbors = [
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 },  // right
+            { dx: 0, dy: -1 }, // up
+            { dx: 0, dy: 1 },  // down
+            { dx: -1, dy: -1 }, // top-left
+            { dx: 1, dy: -1 },  // top-right
+            { dx: -1, dy: 1 },  // bottom-left
+            { dx: 1, dy: 1 }    // bottom-right
+        ];
+        
+        // Process neighbor interactions
+        for (const dir of neighbors) {
+            const nx = x + dir.dx;
+            const ny = y + dir.dy;
             
-            if (isInBounds(newX, y) && !grid[y][newX]) {
-                // Check if there's support below or if we're at bottom
-                if (y >= grid.length - 1 || grid[y+1][newX]) {
-                    grid[y][newX] = grid[y][x];
+            if (!isInBounds(nx, ny) || !grid[ny][nx]) continue;
+            
+            // Sludge can contaminate water
+            if (grid[ny][nx].type === 'water') {
+                // Change water color to be muddy
+                const contaminatedColor = `rgba(93, 64, 55, ${grid[y][x].contaminationLevel * 0.5})`;
+                grid[ny][nx].color = contaminatedColor;
+                grid[ny][nx].contaminated = true;
+                
+                // Decrease sludge contamination level
+                grid[y][x].contaminationLevel = Math.max(0.1, grid[y][x].contaminationLevel - 0.05);
+                
+                // Update sludge color based on remaining contamination
+                const r = 93;
+                const g = 64;
+                const b = 55;
+                const a = 0.5 + (grid[y][x].contaminationLevel * 0.5);
+                grid[y][x].color = `rgba(${r}, ${g}, ${b}, ${a})`;
+                
+                // If sludge loses too much contamination, it becomes more watery
+                if (grid[y][x].contaminationLevel < 0.3) {
+                    grid[y][x].viscosity = Math.max(0.6, grid[y][x].viscosity - 0.1);
+                }
+            }
+            
+            // Sludge kills plants
+            if (grid[ny][nx].type === 'plant') {
+                if (Math.random() < grid[y][x].contaminationLevel * 0.1) {
+                    // Gradually kill the plant
+                    if (!grid[ny][nx].contaminated) {
+                        grid[ny][nx].contaminated = true;
+                        grid[ny][nx].health = (grid[ny][nx].health || 1.0) - 0.2;
+                        
+                        // Update plant color to look sickly
+                        const healthFactor = Math.max(0, grid[ny][nx].health || 0);
+                        const r = 51 + Math.floor((1 - healthFactor) * 100);
+                        const g = Math.max(80, 170 - Math.floor((1 - healthFactor) * 90));
+                        const b = 68;
+                        grid[ny][nx].color = `rgb(${r}, ${g}, ${b})`;
+                        
+                        // Dead plant
+                        if (grid[ny][nx].health <= 0) {
+                            grid[ny][nx] = null;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Sludge movement - affected by viscosity and density
+        if (y < grid.length - 1) {
+            // Only move if random check passes based on viscosity
+            // Higher viscosity = less likely to move
+            if (Math.random() > grid[y][x].viscosity) {
+                // Try to move directly down
+                if (!grid[y + 1][x]) {
+                    grid[y + 1][x] = grid[y][x];
                     grid[y][x] = null;
+                    return;
+                }
+                
+                // Very high density means it can displace less dense liquids below
+                if (grid[y + 1][x] && grid[y + 1][x].isLiquid && 
+                    grid[y + 1][x].density && grid[y + 1][x].density < grid[y][x].density) {
+                    // Swap positions
+                    const temp = grid[y][x];
+                    grid[y][x] = grid[y + 1][x];
+                    grid[y + 1][x] = temp;
                     return;
                 }
             }
         }
         
-        // Sometimes drip through small gaps (like water, but less often)
-        if (y < grid.length - 1 && Math.random() < flowChance * 0.3) {
-            // Try to move diagonally down
-            const diagDir = Math.random() < 0.5 ? -1 : 1;
-            const newX = x + diagDir;
-            const newY = y + 1;
+        // Horizontal spread is extremely slow
+        if (Math.random() > grid[y][x].viscosity * 1.5) {
+            const direction = Math.random() < 0.5 ? -1 : 1;
+            const nx = x + direction;
             
-            if (isInBounds(newX, newY) && !grid[newY][newX]) {
-                grid[newY][newX] = grid[y][x];
+            if (isInBounds(nx, y) && !grid[y][nx]) {
+                grid[y][nx] = grid[y][x];
                 grid[y][x] = null;
+                return;
             }
         }
     },
     
-    // Contaminate nearby elements
-    contaminateNearby: function(x, y, grid, isInBounds) {
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-        ];
+    // Custom rendering function
+    render: function(ctx, x, y, particle, cellSize) {
+        // Base sludge color
+        ctx.fillStyle = particle.color || this.defaultColor;
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (!isInBounds(newX, newY)) continue;
-            
-            const neighbor = grid[newY][newX];
-            if (!neighbor) continue;
-            
-            // Don't contaminate other sludge or highly durable materials
-            if (neighbor.type === 'sludge' || 
-                neighbor.type === 'stone' || 
-                neighbor.type === 'metal' || 
-                neighbor.durability > 0.9) {
-                continue;
-            }
-            
-            // Chance to contaminate based on spreadRate and element durability
-            const contaminationChance = this.spreadRate * (1 - (neighbor.durability || 0.5));
-            
-            if (Math.random() < contaminationChance) {
-                // Different effects based on element type
-                if (neighbor.isLiquid) {
-                    // Contaminate liquids by turning them into sludge
-                    if (Math.random() < 0.2) { // 20% chance to fully convert
-                        grid[newY][newX] = {
-                            type: 'sludge',
-                            color: this.defaultColor,
-                            density: this.density,
-                            temperature: neighbor.temperature,
-                            processed: true,
-                            isLiquid: true,
-                            isToxic: true
-                        };
-                        this.updateOnCreate(grid[newY][newX]);
-                    } else {
-                        // Otherwise just contaminate the liquid
-                        neighbor.contaminated = true;
-                        // Shift color towards sludge color
-                        const origColor = neighbor.originalColor || neighbor.color;
-                        neighbor.originalColor = origColor;
-                        
-                        // Simple color blending
-                        neighbor.color = this.blendColors(origColor, this.defaultColor, 0.3);
-                    }
-                } else if (neighbor.type === 'plant' || neighbor.type === 'grass' || neighbor.type === 'seed') {
-                    // Kill plants
-                    grid[newY][newX] = {
-                        type: 'deadMatter',
-                        color: '#595941', // Dead plant color
-                        density: 0.7,
-                        temperature: neighbor.temperature,
-                        processed: true,
-                        flammable: true,
-                        isPowder: true
-                    };
-                } else if (neighbor.type === 'wood' || neighbor.type === 'dirt') {
-                    // Contaminate solid natural materials
-                    neighbor.contaminated = true;
-                    if (!neighbor.originalColor) {
-                        neighbor.originalColor = neighbor.color;
-                    }
-                    neighbor.color = this.blendColors(neighbor.originalColor, this.defaultColor, 0.2);
-                }
-            }
-        }
-    },
-    
-    // Helper method to blend colors
-    blendColors: function(color1, color2, ratio) {
-        // Simple hex color blending
-        // Convert hex to RGB
-        const hexToRgb = (hex) => {
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            return { r, g, b };
-        };
+        // Add muddy texture with bubbles and debris
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
         
-        // Convert RGB to hex
-        const rgbToHex = (r, g, b) => {
-            return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-        };
-        
-        // If colors aren't in hex format, return the sludge color
-        if (!color1.startsWith('#') || !color2.startsWith('#')) {
-            return this.defaultColor;
+        // Draw 2-3 random mud specks
+        const speckCount = 2 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < speckCount; i++) {
+            const speckX = x * cellSize + Math.random() * cellSize;
+            const speckY = y * cellSize + Math.random() * cellSize;
+            const speckSize = Math.max(1, Math.random() * cellSize / 6);
+            ctx.beginPath();
+            ctx.arc(speckX, speckY, speckSize, 0, Math.PI * 2);
+            ctx.fill();
         }
         
-        const rgb1 = hexToRgb(color1);
-        const rgb2 = hexToRgb(color2);
-        
-        // Blend colors
-        const r = Math.round(rgb1.r * (1 - ratio) + rgb2.r * ratio);
-        const g = Math.round(rgb1.g * (1 - ratio) + rgb2.g * ratio);
-        const b = Math.round(rgb1.b * (1 - ratio) + rgb2.b * ratio);
-        
-        return rgbToHex(r, g, b);
-    },
-    
-    // Custom rendering for sludge
-    render: function(ctx, x, y, particle, CELL_SIZE) {
-        // Base color
-        ctx.fillStyle = particle.color;
-        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        
-        if (particle.solidified) {
-            // Solidified sludge has a crusty texture
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        // Occasionally add visible debris
+        if (particle.hasDebris) {
+            ctx.fillStyle = '#8D6E63'; // Lighter brown for debris
             
-            // Add random crusty bits
-            for (let i = 0; i < 5; i++) {
-                const dotX = Math.random() * CELL_SIZE;
-                const dotY = Math.random() * CELL_SIZE;
-                const dotSize = Math.random() * 3 + 1;
-                
+            const debrisType = Math.floor(Math.random() * 3);
+            if (debrisType === 0) {
+                // Draw a small stick
+                ctx.fillRect(
+                    x * cellSize + cellSize * 0.3, 
+                    y * cellSize + cellSize * 0.4, 
+                    cellSize * 0.4, 
+                    cellSize * 0.1
+                );
+            } else if (debrisType === 1) {
+                // Draw a small stone
                 ctx.beginPath();
                 ctx.arc(
-                    x * CELL_SIZE + dotX,
-                    y * CELL_SIZE + dotY,
-                    dotSize,
-                    0,
-                    Math.PI * 2
+                    x * cellSize + cellSize * 0.6, 
+                    y * cellSize + cellSize * 0.6, 
+                    cellSize * 0.15, 
+                    0, Math.PI * 2
+                );
+                ctx.fill();
+            } else {
+                // Draw a small leaf
+                ctx.fillStyle = '#4E342E';
+                ctx.beginPath();
+                ctx.ellipse(
+                    x * cellSize + cellSize * 0.5, 
+                    y * cellSize + cellSize * 0.5, 
+                    cellSize * 0.2, 
+                    cellSize * 0.1, 
+                    Math.PI * 0.25, 
+                    0, Math.PI * 2
                 );
                 ctx.fill();
             }
-        } else {
-            // Liquid sludge has a bubbly look
+        }
+        
+        // Add a bubble occasionally
+        if (Math.random() < 0.1) {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            
-            // Add random bubbles
-            for (let i = 0; i < 3; i++) {
-                const bubbleX = Math.random() * CELL_SIZE;
-                const bubbleY = Math.random() * CELL_SIZE;
-                const bubbleSize = Math.random() * 2 + 1;
-                
-                ctx.beginPath();
-                ctx.arc(
-                    x * CELL_SIZE + bubbleX,
-                    y * CELL_SIZE + bubbleY,
-                    bubbleSize,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.fill();
-            }
-            
-            // Add toxic shimmer
-            if (Math.random() < 0.3) {
-                ctx.fillStyle = 'rgba(143, 197, 36, 0.2)';
-                ctx.beginPath();
-                ctx.arc(
-                    x * CELL_SIZE + CELL_SIZE/2,
-                    y * CELL_SIZE + CELL_SIZE/2,
-                    CELL_SIZE * 0.3,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.fill();
-            }
+            const bubbleSize = cellSize / 8;
+            const bubbleX = x * cellSize + Math.random() * (cellSize - bubbleSize);
+            const bubbleY = y * cellSize + Math.random() * (cellSize - bubbleSize);
+            ctx.beginPath();
+            ctx.arc(bubbleX, bubbleY, bubbleSize, 0, Math.PI * 2);
+            ctx.fill();
         }
-    },
-    
-    // Update particle on creation
-    updateOnCreate: function(particle) {
-        particle.temperature = this.defaultTemperature;
-        particle.solidified = false;
-        particle.viscosity = this.viscosity;
-        particle.toxicity = this.toxicity;
-        particle.isToxic = true;
-        return particle;
     }
-}; 
+};
+
+// Make the element available globally
+window.SludgeElement = SludgeElement; 

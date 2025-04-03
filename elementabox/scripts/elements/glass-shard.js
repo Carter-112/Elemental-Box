@@ -1,233 +1,269 @@
-// Glass Shard element module
-window.GlassShardElement = {
-    name: 'glass_shard',
-    defaultColor: 'rgba(200, 230, 255, 0.8)', // Transparent blue-tint, slightly more visible than glass
-    density: 2.0,            // Lighter than solid glass
-    durability: 0.1,         // Very fragile
-    flammable: false,
-    defaultTemperature: 25,
-    stickiness: 0,           // Not sticky
-    isLiquid: false,
-    isGas: false,
-    isPowder: true,          // Behaves like powder
-    transparency: 0.6,       // High transparency
+// Glass Shard Element
+// A sharp powder that can pop bubbles and balloons
+
+const GlassShardElement = {
+    name: 'glass-shard',
+    label: 'Glass Shard',
+    description: 'Sharp fragments of glass that can pop bubbles and balloons',
+    category: 'solid-powder',
+    defaultColor: '#E0F8FF', // Light blue/transparent color
     
-    // Process glass shard particles
+    // Physical properties
+    density: 0.9,
+    isGas: false,
+    isLiquid: false,
+    isPowder: true,
+    isSolid: false,
+    isStatic: false,
+    isSpawner: false,
+    isElectrical: false,
+    
+    // Behavior properties
+    flammable: false,
+    conductive: false,
+    explosive: false,
+    reactive: true,
+    corrosive: false,
+    temperature: 25, // room temperature by default
+    transparency: 0.6, // Glass shards are somewhat transparent
+    
+    // Called when the element is created
+    updateOnCreate: function(particle) {
+        particle.processed = false;
+        particle.sharpness = 100; // Full sharpness
+        particle.temperature = this.temperature;
+        
+        // Random size variations for shards
+        particle.size = 0.7 + (Math.random() * 0.6);
+        
+        // Random rotation for visual variety
+        particle.rotation = Math.random() * 360;
+        return particle;
+    },
+    
+    // Process the element's behavior
     process: function(x, y, grid, isInBounds) {
-        if (!grid[y][x] || grid[y][x].processed) return;
+        // Skip if already processed
+        if (grid[y][x].processed) return;
         
-        const shard = grid[y][x];
-        shard.processed = true;
+        // Mark as processed
+        grid[y][x].processed = true;
         
-        // Aging mechanism - shards eventually disappear
-        if (shard.age !== undefined) {
-            shard.age++;
-            
-            // Gradually fade out
-            if (shard.age > shard.lifetime * 0.7) {
-                // Calculate opacity based on remaining lifetime
-                const remainingLife = shard.lifetime - shard.age;
-                const maxRemainingLife = shard.lifetime * 0.3;
-                const opacity = Math.max(0, remainingLife / maxRemainingLife) * 0.8;
-                
-                // Update color with new opacity
-                const baseColor = 'rgba(200, 230, 255,';
-                shard.color = `${baseColor} ${opacity})`;
-            }
-            
-            // Remove when lifetime is exceeded
-            if (shard.age >= shard.lifetime) {
+        // Glass shards fall with gravity like other powders
+        if (y < grid.length - 1) {
+            // Try to move directly down
+            if (!grid[y + 1][x]) {
+                grid[y + 1][x] = grid[y][x];
                 grid[y][x] = null;
                 return;
             }
-        } else {
-            // Initialize age and lifetime if not set
-            shard.age = 0;
-            shard.lifetime = 100 + Math.floor(Math.random() * 100);
-        }
-        
-        // Apply velocity if shard has it
-        if (shard.velocity) {
-            this.applyVelocity(x, y, grid, isInBounds);
-            return;
-        }
-        
-        // Try to fall like powder
-        this.tryToFallAsPowder(x, y, grid, isInBounds);
-    },
-    
-    // Apply velocity to shard movement
-    applyVelocity: function(x, y, grid, isInBounds) {
-        const shard = grid[y][x];
-        
-        // Calculate new position based on velocity
-        const newX = Math.round(x + shard.velocity.x);
-        const newY = Math.round(y + shard.velocity.y);
-        
-        // Apply gravity
-        shard.velocity.y += 0.1;
-        
-        // Apply air resistance
-        shard.velocity.x *= 0.97;
-        shard.velocity.y *= 0.97;
-        
-        // Check if we can move to the new position
-        if (isInBounds(newX, newY) && !grid[newY][newX]) {
-            // Move the shard
-            grid[newY][newX] = shard;
-            grid[y][x] = null;
-        } else {
-            // Hit something, bounce or stop
-            if (isInBounds(newX, newY) && grid[newY][newX]) {
-                // Chance to break further on impact
-                if (Math.random() < 0.3) {
-                    grid[y][x] = null;
-                    return;
-                }
-                
-                // Bounce with reduced energy
-                shard.velocity.x *= -0.5;
-                shard.velocity.y *= -0.5;
-                
-                // If very slow, stop applying velocity
-                if (Math.abs(shard.velocity.x) < 0.1 && Math.abs(shard.velocity.y) < 0.1) {
-                    shard.velocity = null;
-                }
+            
+            // Try to slide to bottom-left or bottom-right
+            const randomDirection = Math.random() < 0.5;
+            
+            if (randomDirection && x > 0 && !grid[y + 1][x - 1]) {
+                grid[y + 1][x - 1] = grid[y][x];
+                grid[y][x] = null;
+                return;
+            } else if (!randomDirection && x < grid[0].length - 1 && !grid[y + 1][x + 1]) {
+                grid[y + 1][x + 1] = grid[y][x];
+                grid[y][x] = null;
+                return;
             }
         }
-    },
-    
-    // Try to fall as powder
-    tryToFallAsPowder: function(x, y, grid, isInBounds) {
-        // Check if we can fall directly down
-        if (y < grid.length - 1 && !grid[y+1][x]) {
-            grid[y+1][x] = grid[y][x];
-            grid[y][x] = null;
-            return;
-        }
         
-        // Try to slide down diagonally
-        const directions = [
-            { dx: -1, dy: 1 }, // down-left
-            { dx: 1, dy: 1 }   // down-right
+        // Check for interactions with surrounding cells
+        const neighbors = [
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 },  // right
+            { dx: 0, dy: -1 }, // up
+            { dx: 0, dy: 1 },  // down
+            { dx: -1, dy: -1 }, // top-left
+            { dx: 1, dy: -1 },  // top-right
+            { dx: -1, dy: 1 },  // bottom-left
+            { dx: 1, dy: 1 }    // bottom-right
         ];
         
-        // Randomize direction to avoid bias
-        if (Math.random() < 0.5) {
-            directions.reverse();
-        }
-        
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
+        for (const dir of neighbors) {
+            const nx = x + dir.dx;
+            const ny = y + dir.dy;
             
-            if (isInBounds(newX, newY) && !grid[newY][newX]) {
-                grid[newY][newX] = grid[y][x];
-                grid[y][x] = null;
+            if (!isInBounds(nx, ny) || !grid[ny][nx]) continue;
+            
+            // Pop bubbles and balloons
+            if (grid[ny][nx].type === 'bubble') {
+                // Pop the bubble, creating a small air burst
+                grid[ny][nx] = null;
+                
+                // Air burst effect - create a small outward push
+                this.createAirBurst(nx, ny, 2, grid, isInBounds);
+                
+                // Reduce sharpness with use
+                grid[y][x].sharpness -= 5;
                 return;
+            }
+            
+            if (grid[ny][nx].type === 'balloon') {
+                // Pop the balloon with a louder effect
+                grid[ny][nx] = null;
+                
+                // Air burst effect - create a larger outward push
+                this.createAirBurst(nx, ny, 3, grid, isInBounds);
+                
+                // Reduce sharpness more with balloon pop
+                grid[y][x].sharpness -= 10;
+                return;
+            }
+            
+            // Glass shards can scratch other glass to create more tiny shards
+            if (grid[ny][nx].type === 'glass' && Math.random() < 0.01) {
+                // Rarely create a new glass shard from scratching glass
+                const emptyNeighbors = [];
+                
+                for (const checkDir of neighbors) {
+                    const checkX = nx + checkDir.dx;
+                    const checkY = ny + checkDir.dy;
+                    
+                    if (isInBounds(checkX, checkY) && !grid[checkY][checkX]) {
+                        emptyNeighbors.push({ x: checkX, y: checkY });
+                    }
+                }
+                
+                if (emptyNeighbors.length > 0) {
+                    const targetCell = emptyNeighbors[Math.floor(Math.random() * emptyNeighbors.length)];
+                    
+                    // Create a small glass shard
+                    grid[targetCell.y][targetCell.x] = {
+                        type: 'glass-shard',
+                        color: this.defaultColor,
+                        processed: true,
+                        sharpness: 80, // Slightly less sharp
+                        size: 0.5 + (Math.random() * 0.3), // Smaller shard
+                        rotation: Math.random() * 360,
+                        temperature: grid[ny][nx].temperature,
+                        transparency: this.transparency,
+                        isGas: false,
+                        isLiquid: false,
+                        isPowder: true,
+                        isSolid: false
+                    };
+                    
+                    // Reduce sharpness with scratching
+                    grid[y][x].sharpness -= 2;
+                }
             }
         }
         
-        // Try to slide horizontally if the shard is on a slope
-        if (y < grid.length - 1) {
-            // Check for slopes on either side
-            const leftSlope = isInBounds(x-1, y) && !grid[y][x-1] && 
-                              isInBounds(x-1, y+1) && grid[y+1][x-1];
-                              
-            const rightSlope = isInBounds(x+1, y) && !grid[y][x+1] && 
-                               isInBounds(x+1, y+1) && grid[y+1][x+1];
-            
-            if (leftSlope && (!rightSlope || Math.random() < 0.5)) {
-                grid[y][x-1] = grid[y][x];
-                grid[y][x] = null;
-                return;
-            } else if (rightSlope) {
-                grid[y][x+1] = grid[y][x];
-                grid[y][x] = null;
-                return;
-            }
+        // Glass shards lose sharpness over time from abrasion
+        if (Math.random() < 0.0001) {
+            grid[y][x].sharpness -= 1;
         }
         
-        // Chance to settle and stop moving
-        if (Math.random() < 0.01) {
-            const shard = grid[y][x];
-            shard.settled = true;
+        // If the shard gets too dull, it becomes normal sand
+        if (grid[y][x].sharpness <= 0) {
+            grid[y][x] = {
+                type: 'sand',
+                color: '#E6C78C', // Sand color
+                processed: true,
+                temperature: grid[y][x].temperature,
+                isGas: false,
+                isLiquid: false,
+                isPowder: true,
+                isSolid: false
+            };
+            return;
+        }
+        
+        // Heat can melt glass shards back into glass
+        if (grid[y][x].temperature > 800) {
+            grid[y][x] = {
+                type: 'glass',
+                color: '#E0F8FF',
+                processed: true,
+                temperature: grid[y][x].temperature,
+                isGas: false,
+                isLiquid: false,
+                isPowder: false,
+                isSolid: true,
+                transparency: 0.7
+            };
+            return;
         }
     },
     
-    // Custom rendering for glass shard
-    render: function(ctx, x, y, particle, CELL_SIZE) {
-        // Base glass shard appearance - semi-transparent
-        ctx.fillStyle = particle.color;
+    // Create an air burst effect from popping bubbles/balloons
+    createAirBurst: function(x, y, radius, grid, isInBounds) {
+        // Push particles away from the burst point
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const distance = Math.sqrt(dx*dx + dy*dy);
+                if (distance > radius || distance === 0) continue;
+                
+                const nx = x + dx;
+                const ny = y + dy;
+                
+                if (!isInBounds(nx, ny) || !grid[ny][nx]) continue;
+                
+                // Particles will be pushed in the direction from center
+                const pushX = Math.floor(nx + (dx / distance));
+                const pushY = Math.floor(ny + (dy / distance));
+                
+                // Only push if target cell is empty
+                if (isInBounds(pushX, pushY) && !grid[pushY][pushX] && 
+                    // Don't push heavy particles
+                    (!grid[ny][nx].density || grid[ny][nx].density < 1.5)) {
+                    
+                    grid[pushY][pushX] = grid[ny][nx];
+                    grid[ny][nx] = null;
+                }
+            }
+        }
+    },
+    
+    // Render the glass shard
+    render: function(ctx, x, y, particle, cellSize) {
+        const centerX = x * cellSize + cellSize / 2;
+        const centerY = y * cellSize + cellSize / 2;
         
-        // Draw the shard as a smaller, irregular shape
-        const centerX = x * CELL_SIZE + CELL_SIZE / 2;
-        const centerY = y * CELL_SIZE + CELL_SIZE / 2;
-        const size = CELL_SIZE * 0.8;  // Slightly smaller than a full cell
+        // Set transparency
+        ctx.globalAlpha = 0.6;
         
+        // Small random variations in color
+        const colorVariation = Math.floor(Math.random() * 15);
+        ctx.fillStyle = particle.color || this.defaultColor;
+        
+        // Draw the shard as an irregular polygon
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        
+        // Use particle's rotation if available, or generate random
+        const rotation = particle.rotation || Math.random() * 360;
+        ctx.rotate(rotation * Math.PI / 180);
+        
+        // Use particle's size if available
+        const size = (particle.size || 1) * cellSize * 0.4;
+        
+        // Draw an irregular polygon for the shard
         ctx.beginPath();
-        
-        // Create a jagged, shard-like shape
-        const points = [];
-        const sharpness = 0.7; // How sharp the points are (0-1)
-        
-        // Generate a unique shape for this shard
-        const seed = (x * 37 + y * 13) % 100; // Simple hash for consistency
-        
-        for (let i = 0; i < 5; i++) { // 5-sided shard
-            const angle = (i / 5) * Math.PI * 2;
-            const distance = size * (0.4 + 0.6 * Math.sin(seed + i * 5)); // Vary the distance
-            
-            points.push({
-                x: centerX + Math.cos(angle) * distance,
-                y: centerY + Math.sin(angle) * distance
-            });
-        }
-        
-        // Draw the shape
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
-        }
+        ctx.moveTo(0, -size);
+        ctx.lineTo(size * 0.7, size * 0.3);
+        ctx.lineTo(size * 0.2, size);
+        ctx.lineTo(-size * 0.5, size * 0.7);
+        ctx.lineTo(-size * 0.7, -size * 0.3);
         ctx.closePath();
         ctx.fill();
         
-        // Add glass reflections
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        ctx.lineTo(points[1].x, points[1].y);
-        ctx.lineTo(points[2].x, points[2].y);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Add a slight border to show the edges of the shard
-        ctx.strokeStyle = 'rgba(150, 200, 255, 0.5)';
+        // Add a highlight
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
         ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
-        }
-        ctx.closePath();
         ctx.stroke();
         
-        // Show age effects (fading)
-        if (particle.age && particle.lifetime) {
-            const ageRatio = particle.age / particle.lifetime;
-            if (ageRatio > 0.7) {
-                const alpha = 1 - ((ageRatio - 0.7) / 0.3);
-                ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.1})`;
-                ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            }
-        }
-    },
-    
-    // Update particle on creation
-    updateOnCreate: function(particle) {
-        if (!particle.age) particle.age = 0;
-        if (!particle.lifetime) particle.lifetime = 100 + Math.floor(Math.random() * 100);
-        particle.temperature = this.defaultTemperature;
-        return particle;
+        ctx.restore();
+        
+        // Reset opacity
+        ctx.globalAlpha = 1.0;
     }
-}; 
+};
+
+// Make the element available globally
+window.GlassShardElement = GlassShardElement; 

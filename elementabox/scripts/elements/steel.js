@@ -1,343 +1,251 @@
-// Steel element module
-window.SteelElement = {
+// Steel Element
+// A durable metal alloy that conducts electricity and heat
+
+const SteelElement = {
     name: 'steel',
-    defaultColor: '#71797E',  // Steel gray
-    density: 7.8,             // Very high density
-    durability: 0.95,         // Extremely durable
-    flammable: false,
-    defaultTemperature: 25,
-    stickiness: 0.2,          // Sticky for building structures
-    isLiquid: false,
+    label: 'Steel',
+    description: 'A strong metal alloy that conducts electricity and heat',
+    category: 'solid',
+    defaultColor: '#8C8C8C',
+    
+    // Physical properties
+    density: 7.8, // Very dense
     isGas: false,
+    isLiquid: false,
     isPowder: false,
-    conductivity: 0.9,        // Very high thermal conductivity
+    isSolid: true,
+    isStatic: true, // Doesn't move unless forced
+    isSpawner: false,
+    isElectrical: true, // Conducts electricity
     
-    // Process steel particles
+    // Behavior properties
+    flammable: false,
+    conductive: true,
+    explosive: false,
+    reactive: false,
+    corrosive: false,
+    meltingPoint: 1500, // High melting point
+    temperature: 25, // Room temperature
+    
+    // Called when the element is created
+    updateOnCreate: function(particle) {
+        particle.processed = false;
+        particle.hasElectricity = false;
+        particle.conductivityTimer = 0;
+        return particle;
+    },
+    
+    // Process the element's behavior
     process: function(x, y, grid, isInBounds) {
-        if (!grid[y][x] || grid[y][x].processed) return;
+        // Skip if already processed
+        if (grid[y][x].processed) return;
         
-        const steel = grid[y][x];
-        steel.processed = true;
+        // Mark as processed
+        grid[y][x].processed = true;
         
-        // Check if we can fall
-        if (!this.isSupported(x, y, grid, isInBounds)) {
-            this.tryToFall(x, y, grid, isInBounds);
+        // Initialize properties if not set
+        if (grid[y][x].hasElectricity === undefined) {
+            grid[y][x].hasElectricity = false;
+        }
+        if (grid[y][x].conductivityTimer === undefined) {
+            grid[y][x].conductivityTimer = 0;
+        }
+        
+        // Handle electricity conduction
+        if (grid[y][x].hasElectricity) {
+            grid[y][x].conductivityTimer++;
+            
+            // Visual effect of electricity lasts for short duration
+            if (grid[y][x].conductivityTimer > 5) {
+                grid[y][x].hasElectricity = false;
+                grid[y][x].conductivityTimer = 0;
+            }
+            
+            // Conduct to neighboring conductive elements
+            const directions = [
+                { dx: 0, dy: -1 },  // up
+                { dx: 1, dy: 0 },   // right
+                { dx: 0, dy: 1 },   // down
+                { dx: -1, dy: 0 },  // left
+                { dx: 1, dy: -1 },  // up-right
+                { dx: 1, dy: 1 },   // down-right
+                { dx: -1, dy: 1 },  // down-left
+                { dx: -1, dy: -1 }  // up-left
+            ];
+            
+            for (const dir of directions) {
+                const nx = x + dir.dx;
+                const ny = y + dir.dy;
+                
+                if (isInBounds(nx, ny) && grid[ny][nx]) {
+                    const neighbor = grid[ny][nx];
+                    // Only conduct to elements that can receive electricity and aren't already conducting
+                    if (neighbor.conductive && !neighbor.hasElectricity) {
+                        neighbor.hasElectricity = true;
+                        neighbor.conductivityTimer = 0;
+                    }
+                }
+            }
+        }
+        
+        // Temperature effects - melting if temperature reaches melting point
+        if (grid[y][x].temperature >= grid[y][x].meltingPoint) {
+            // Convert to molten metal (lava)
+            grid[y][x] = {
+                type: 'lava',
+                color: '#FF4400',
+                temperature: grid[y][x].temperature,
+                processed: true,
+                isGas: false,
+                isLiquid: true,
+                isPowder: false,
+                isSolid: false
+            };
             return;
         }
         
-        // Steel conducts heat very well
-        this.conductHeat(x, y, grid, isInBounds);
-        
-        // Steel can melt at extremely high temperatures (higher than regular metal)
-        if (steel.temperature >= 1500) {
-            // 3% chance to melt per frame at high temperature
-            if (Math.random() < 0.03) {
-                grid[y][x] = this.createMoltenSteelParticle();
-                return;
-            }
-        }
-        
-        // Steel can conduct electricity
-        if (steel.charged) {
-            this.conductElectricity(x, y, grid, isInBounds);
-            
-            // Charge dissipates over time
-            if (Math.random() < 0.1) {
-                steel.charged = false;
-                steel.chargeLevel = 0;
-            }
-        }
-    },
-    
-    // Check if the steel is supported
-    isSupported: function(x, y, grid, isInBounds) {
-        // If at the bottom of the grid, it's supported by the ground
-        if (y >= grid.length - 1) return true;
-        
-        // Check if supported from below
-        if (grid[y+1][x] && this.isSolidSupport(grid[y+1][x].type)) {
-            return true;
-        }
-        
-        // Check if supports exist on all sides
-        let supportCount = 0;
-        
-        // Check left, right, up, and corners
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: -1, dy: -1 }, // up-left
-            { dx: 1, dy: -1 },  // up-right
-        ];
-        
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (isInBounds(newX, newY) && grid[newY][newX] && this.isSolidSupport(grid[newY][newX].type)) {
-                supportCount++;
-            }
-        }
-        
-        // Steel can stay in place if supported by at least 2 sides
-        // This allows for more complex structures
-        return supportCount >= 2;
-    },
-    
-    // Check if a material type can support steel
-    isSolidSupport: function(type) {
-        return ['steel', 'metal', 'brick', 'stone'].includes(type);
-    },
-    
-    // Try to make steel fall
-    tryToFall: function(x, y, grid, isInBounds) {
-        // Check if we can fall directly down
-        if (y < grid.length - 1 && !grid[y+1][x]) {
-            grid[y+1][x] = grid[y][x];
-            grid[y][x] = null;
-            return;
-        }
-        
-        // Try to slide down to the left or right
-        const directions = [
-            { dx: -1, dy: 1 }, // down-left
-            { dx: 1, dy: 1 }   // down-right
-        ];
-        
-        // Randomize direction to avoid bias
-        if (Math.random() < 0.5) {
-            directions.reverse();
-        }
-        
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (isInBounds(newX, newY) && !grid[newY][newX]) {
-                grid[newY][newX] = grid[y][x];
-                grid[y][x] = null;
-                return;
-            }
-        }
-        
-        // Steel is heavy and can displace lighter materials below it
-        if (y < grid.length - 1) {
-            const particleBelow = grid[y+1][x];
-            if (particleBelow && this.shouldDisplace(particleBelow)) {
-                // Swap positions
-                grid[y][x] = particleBelow;
-                grid[y+1][x] = steel;
-                particleBelow.processed = true;
-                return;
-            }
-        }
-    },
-    
-    // Helper function to determine if steel should displace a particle
-    shouldDisplace: function(particle) {
-        // Steel displaces particles with lower density
-        return particle.density !== undefined && particle.density < this.density && 
-               (particle.isLiquid || particle.isGas || particle.isPowder);
-    },
-    
-    // Heat conductivity for steel
-    conductHeat: function(x, y, grid, isInBounds) {
-        const steel = grid[y][x];
-        let totalTemp = steel.temperature;
+        // Temperature equilibrium with surroundings
+        let totalTemp = grid[y][x].temperature;
         let count = 1;
         
-        // Check all 8 directions (steel conducts heat very well)
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-            { dx: -1, dy: -1 }, // up-left
-            { dx: 1, dy: -1 },  // up-right
-            { dx: -1, dy: 1 },  // down-left
-            { dx: 1, dy: 1 }    // down-right
-        ];
-        
-        // Collect temperatures from neighbors
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (isInBounds(newX, newY) && grid[newY][newX]) {
-                totalTemp += grid[newY][newX].temperature;
-                count++;
+        // Check neighboring cells for temperature conduction
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                
+                const nx = x + dx;
+                const ny = y + dy;
+                
+                if (isInBounds(nx, ny) && grid[ny][nx]) {
+                    totalTemp += grid[ny][nx].temperature;
+                    count++;
+                }
             }
         }
         
-        // Calculate new temperature with conductivity factor
+        // Steel conducts heat well, so temperature equilibrium happens faster
         const avgTemp = totalTemp / count;
-        steel.temperature = steel.temperature * (1 - this.conductivity) + avgTemp * this.conductivity;
+        grid[y][x].temperature = grid[y][x].temperature * 0.8 + avgTemp * 0.2;
     },
     
-    // Steel conducts electricity
-    conductElectricity: function(x, y, grid, isInBounds) {
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-            { dx: -1, dy: -1 }, // up-left
-            { dx: 1, dy: -1 },  // up-right
-            { dx: -1, dy: 1 },  // down-left
-            { dx: 1, dy: 1 }    // down-right
-        ];
+    // Custom rendering function
+    render: function(ctx, x, y, particle, cellSize) {
+        // Base metal color
+        let baseColor = particle.color || this.defaultColor;
         
-        // Chance to create sparks if highly charged
-        const steel = grid[y][x];
-        if (steel.chargeLevel && steel.chargeLevel > 3 && Math.random() < 0.1) {
-            for (const dir of directions) {
-                const newX = x + dir.dx;
-                const newY = y + dir.dy;
-                
-                if (isInBounds(newX, newY) && !grid[newY][newX]) {
-                    // Create electric spark
-                    grid[newY][newX] = {
-                        type: 'fire',
-                        color: '#AADDFF', // Bluish-white color for electric spark
-                        temperature: 100,
-                        processed: false,
-                        burnDuration: 3, // Very short duration
-                        flammable: false,
-                        isElectricSpark: true
-                    };
-                    break;
-                }
-            }
-        }
-        
-        // Conduct charge to other metals and activate nearby electrical components
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (isInBounds(newX, newY) && grid[newY][newX]) {
-                const neighbor = grid[newY][newX];
-                
-                // Charge other metals
-                if ((neighbor.type === 'metal' || neighbor.type === 'steel') && !neighbor.charged) {
-                    neighbor.charged = true;
-                    neighbor.chargeLevel = (steel.chargeLevel || 1) - 1;
-                }
-                
-                // Activate wires
-                if (neighbor.type === 'wire' && !neighbor.active) {
-                    neighbor.active = true;
-                    neighbor.activeDuration = 5;
-                }
-                
-                // Light up bulbs
-                if (neighbor.type === 'bulb' && !neighbor.lit) {
-                    neighbor.lit = true;
-                    neighbor.litDuration = 10;
-                }
-                
-                // Activate switches
-                if (neighbor.type === 'switch' && !neighbor.on) {
-                    neighbor.on = true;
-                }
-            }
-        }
-    },
-    
-    // Create molten steel particle when steel melts
-    createMoltenSteelParticle: function() {
-        return {
-            type: 'lava',
-            color: '#FF6A00', // Brighter orange for molten steel
-            temperature: 1600,
-            processed: false,
-            flammable: false,
-            density: 7.0, // Slightly less dense than solid steel
-            isLiquid: true,
-            isMoltenMetal: true,
-            isMoltenSteel: true // Special flag
-        };
-    },
-    
-    // Custom rendering for steel
-    render: function(ctx, x, y, particle, CELL_SIZE) {
-        // Base steel color
-        ctx.fillStyle = particle.color;
-        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        
-        // Add metallic highlights for steel
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-        ctx.beginPath();
-        ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
-        ctx.lineTo(x * CELL_SIZE + CELL_SIZE * 0.4, y * CELL_SIZE);
-        ctx.lineTo(x * CELL_SIZE, y * CELL_SIZE + CELL_SIZE * 0.4);
-        ctx.fill();
-        
-        // Draw a darker shade on the bottom-right
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.beginPath();
-        ctx.moveTo(x * CELL_SIZE + CELL_SIZE, y * CELL_SIZE + CELL_SIZE);
-        ctx.lineTo(x * CELL_SIZE + CELL_SIZE, y * CELL_SIZE + CELL_SIZE * 0.6);
-        ctx.lineTo(x * CELL_SIZE + CELL_SIZE * 0.6, y * CELL_SIZE + CELL_SIZE);
-        ctx.fill();
-        
-        // Add occasional rivets for steel texture
-        if ((x + y) % 3 === 0) {
-            ctx.fillStyle = '#555555';
-            ctx.beginPath();
-            ctx.arc(
-                x * CELL_SIZE + CELL_SIZE * 0.5, 
-                y * CELL_SIZE + CELL_SIZE * 0.5, 
-                CELL_SIZE * 0.1, 
-                0, 
-                Math.PI * 2
+        // If conducting electricity, add a blue glow
+        if (particle.hasElectricity) {
+            // Create a blue-white electrical effect
+            const gradient = ctx.createRadialGradient(
+                x * cellSize + cellSize / 2,
+                y * cellSize + cellSize / 2,
+                0,
+                x * cellSize + cellSize / 2,
+                y * cellSize + cellSize / 2,
+                cellSize
             );
-            ctx.fill();
             
-            // Highlight on rivet
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.beginPath();
-            ctx.arc(
-                x * CELL_SIZE + CELL_SIZE * 0.45, 
-                y * CELL_SIZE + CELL_SIZE * 0.45, 
-                CELL_SIZE * 0.05, 
-                0, 
-                Math.PI * 2
+            gradient.addColorStop(0, 'rgba(100, 200, 255, 0.8)');
+            gradient.addColorStop(1, 'rgba(100, 200, 255, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(
+                x * cellSize - cellSize * 0.5, 
+                y * cellSize - cellSize * 0.5, 
+                cellSize * 2, 
+                cellSize * 2
             );
-            ctx.fill();
         }
         
-        // Show temperature effects
+        // Temperature effects on appearance
         if (particle.temperature > 500) {
-            const temp = Math.min(1, (particle.temperature - 500) / 1000);
+            // Add a red glow for hot steel
+            const redness = Math.min(1, (particle.temperature - 500) / 1000);
+            baseColor = this.blendColors(baseColor, '#FF3300', redness * 0.7);
             
-            // Steel goes through color changes as it heats up
-            let r = 128 + Math.floor(127 * temp);
-            let g = 128 - Math.floor(64 * temp);
-            let b = 128 - Math.floor(64 * temp);
+            // Glow effect for hot steel
+            const heatRadius = cellSize * (0.5 + redness * 1.5);
+            const glow = ctx.createRadialGradient(
+                x * cellSize + cellSize / 2,
+                y * cellSize + cellSize / 2,
+                0,
+                x * cellSize + cellSize / 2,
+                y * cellSize + cellSize / 2,
+                heatRadius
+            );
             
-            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.5)`;
-            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            const glowIntensity = redness * 0.5;
+            glow.addColorStop(0, `rgba(255, 100, 0, ${glowIntensity})`);
+            glow.addColorStop(1, 'rgba(255, 100, 0, 0)');
+            
+            ctx.fillStyle = glow;
+            ctx.fillRect(
+                x * cellSize - heatRadius,
+                y * cellSize - heatRadius,
+                cellSize + heatRadius * 2,
+                cellSize + heatRadius * 2
+            );
         }
         
-        // Show electric charge effect
-        if (particle.charged) {
-            const chargeIntensity = Math.min(0.7, ((particle.chargeLevel || 1) / 5));
-            
-            // Pulsing electricity effect
-            const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
-            
-            ctx.fillStyle = `rgba(100, 200, 255, ${chargeIntensity * pulse})`;
-            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        }
+        // Draw the steel with metallic texture
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(
+            x * cellSize, 
+            y * cellSize, 
+            cellSize, 
+            cellSize
+        );
+        
+        // Add metallic highlights
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fillRect(
+            x * cellSize, 
+            y * cellSize, 
+            cellSize / 2, 
+            cellSize / 2
+        );
+        
+        // Add metallic shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(
+            x * cellSize + cellSize / 2, 
+            y * cellSize + cellSize / 2, 
+            cellSize / 2, 
+            cellSize / 2
+        );
     },
     
-    // Update particle on creation
-    updateOnCreate: function(particle) {
-        particle.temperature = this.defaultTemperature;
-        particle.charged = false;
-        particle.chargeLevel = 0;
-        return particle;
+    // Helper function to blend colors for temperature effects
+    blendColors: function(color1, color2, ratio) {
+        // Convert hex to RGB
+        const hex2rgb = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        };
+        
+        // Convert RGB to hex
+        const rgb2hex = (rgb) => {
+            return '#' + ((1 << 24) + (rgb.r << 16) + (rgb.g << 8) + rgb.b).toString(16).slice(1);
+        };
+        
+        const c1 = hex2rgb(color1);
+        const c2 = hex2rgb(color2);
+        
+        if (!c1 || !c2) return color1;
+        
+        const blended = {
+            r: Math.round(c1.r * (1 - ratio) + c2.r * ratio),
+            g: Math.round(c1.g * (1 - ratio) + c2.g * ratio),
+            b: Math.round(c1.b * (1 - ratio) + c2.b * ratio)
+        };
+        
+        return rgb2hex(blended);
     }
-}; 
+};
+
+// Make the element available globally
+window.SteelElement = SteelElement; 

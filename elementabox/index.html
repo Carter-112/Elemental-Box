@@ -130,6 +130,10 @@
             margin: 10px 0;
         }
         
+        #no-boundaries-container {
+            margin: 10px 0;
+        }
+        
         #override-toggle {
             margin-right: 10px;
         }
@@ -173,6 +177,12 @@
         
         .action-btn:hover {
             background-color: #3a3a3a;
+        }
+        
+        .action-btn.active {
+            background-color: #00a8ff;
+            color: white;
+            border-color: #0077cc;
         }
         
         .action-btn.primary {
@@ -750,8 +760,7 @@
                     <label for="override-toggle">Override Elements</label>
                 </div>
                 <div id="no-boundaries-container">
-                    <input type="checkbox" id="no-boundaries-toggle">
-                    <label for="no-boundaries-toggle">Remove Floor/Ceiling</label>
+                    <button id="no-boundaries-btn" class="action-btn">Remove Floor/Ceiling</button>
                 </div>
             </div>
             
@@ -865,6 +874,14 @@
     <script src="scripts/elements/battery.js"></script>
     <script src="scripts/elements/faucet.js"></script>
     <script src="scripts/elements/eraser.js"></script>
+    <script src="scripts/elements/ash.js"></script>
+    <script src="scripts/elements/solid-ash.js"></script>
+    <script src="scripts/elements/balloon.js"></script>
+    <script src="scripts/elements/bubble.js"></script>
+    <script src="scripts/elements/solid-salt.js"></script>
+    
+    <!-- Register all elements (ensure all are properly loaded) -->
+    <script src="scripts/register-elements.js"></script>
     
     <!-- Load main.js last to ensure all other scripts are loaded first -->
     <script src="main.js"></script>

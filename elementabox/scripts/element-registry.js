@@ -97,12 +97,24 @@ class ElementRegistry {
     loadElementScripts() {
         // Define all the element script filenames to load
         const elementScripts = [
-            'sand', 'water', 'smoke', 'fire', 'lava', 'ice', 'plant', 'metal', 'steel',
-            'oil', 'acid', 'glass', 'glass-shard', 'static-charge', 'stone', 'brick',
-            'wood', 'resin', 'crystal', 'steam', 'wind', 'heat', 'cold', 'salt', 'snow',
-            'gunpowder', 'c4', 'torch', 'glue', 'napalm', 'tar', 'sludge',
-            'explosive-powder', 'dynamite', 'fertilizer', 'bacteria', 'fuse',
-            'wire', 'switch', 'bulb', 'battery', 'faucet', 'eraser'
+            // Environmental tools
+            'wind', 'heat', 'cold',
+            // Eraser
+            'eraser',
+            // Solid Powders
+            'bacteria', 'fertilizer', 'explosive-powder', 'gunpowder', 'glass-shard', 'salt', 'sand', 'snow', 'ash',
+            'static-charge',
+            // Solids (non-powder)
+            'brick', 'fuse', 'glass', 'ice', 'c4', 'crystal', 'dynamite', 'metal', 'stone', 'solid-salt', 
+            'plant', 'resin', 'steel', 'solid-ash', 'wood',
+            // Gases
+            'fire', 'bubble', 'balloon', 'steam', 'smoke',
+            // Spawners
+            'faucet', 'torch',
+            // Liquids
+            'acid', 'glue', 'lava', 'napalm', 'oil', 'tar', 'water', 'sludge',
+            // Electrical components
+            'battery', 'bulb', 'switch', 'wire'
         ];
         
         // Register each element if it exists in the global scope
@@ -113,7 +125,33 @@ class ElementRegistry {
                 
             const elementName = pascalName + 'Element';
             if (window[elementName]) {
+                // Set the correct category based on element type
+                if (window[elementName]) {
+                    // Assign categories based on type
+                    if (name === 'eraser') {
+                        window[elementName].category = 'eraser';
+                    } else if (name === 'static-charge' || name === 'ash' || name === 'salt' || name === 'sand' || 
+                              name === 'snow' || name === 'bacteria' || name === 'fertilizer' ||
+                              name === 'explosive-powder' || name === 'gunpowder' || name === 'glass-shard') {
+                        window[elementName].category = 'solid-powder';
+                    } else if (name === 'fire' || name === 'bubble' || name === 'balloon' ||
+                              name === 'steam' || name === 'smoke') {
+                        window[elementName].category = 'gas';
+                    } else if (name === 'faucet' || name === 'torch') {
+                        window[elementName].category = 'solid-spawner';
+                    } else if (name === 'water' || name === 'acid' || name === 'glue' ||
+                              name === 'lava' || name === 'napalm' || name === 'oil' ||
+                              name === 'tar' || name === 'sludge') {
+                        window[elementName].category = 'liquid';
+                    } else if (name === 'battery' || name === 'bulb' || name === 'switch' || name === 'wire') {
+                        window[elementName].category = 'electrical';
+                    } else {
+                        window[elementName].category = 'solid';
+                    }
+                }
+                
                 this.registerElement(window[elementName]);
+                console.log(`Registered element: ${elementName} with category: ${window[elementName].category}`);
             } else {
                 console.warn(`Element ${elementName} not found in global scope`);
             }
@@ -183,6 +221,20 @@ class ElementRegistry {
         // Process environmental effects
         this.applyEnvironmentalEffects(isInBounds, getRandomCell);
         
+        // Process each particle in the grid (from bottom to top for gravity-like simulation)
+        for (let y = this.grid.length - 1; y >= 0; y--) {
+            // Left to right for even rows, right to left for odd rows to avoid bias
+            if (y % 2 === 0) {
+                for (let x = 0; x < this.grid[y].length; x++) {
+                    this.processParticleAt(x, y, isInBounds);
+                }
+            } else {
+                for (let x = this.grid[y].length - 1; x >= 0; x--) {
+                    this.processParticleAt(x, y, isInBounds);
+                }
+            }
+        }
+        
         // Apply physics like gravity
         this.applyGravity();
         
@@ -202,7 +254,7 @@ class ElementRegistry {
         
         const element = this.getElement(particle.type);
         if (element && element.process) {
-            element.process(x, y, particle);
+            element.process(x, y, this.grid, isInBounds);
         }
         
         particle.processed = true;
@@ -221,12 +273,34 @@ class ElementRegistry {
     
     // Apply gravity to all particles
     applyGravity() {
-        // Implementation for gravity
+        // Skip if grid is not initialized
+        if (!this.grid) return;
+        
+        // Apply gravity to any remaining particles that didn't handle their own gravity
+        for (let y = this.grid.length - 2; y >= 0; y--) {
+            for (let x = 0; x < this.grid[y].length; x++) {
+                const particle = this.grid[y][x];
+                if (!particle) continue;
+                
+                // Only apply to particles that should be affected by gravity but weren't processed
+                if ((particle.isLiquid || particle.isPowder || particle.hasGravity) && !particle.processed) {
+                    // Move down if possible
+                    if (!this.grid[y + 1][x]) {
+                        this.grid[y + 1][x] = particle;
+                        this.grid[y][x] = null;
+                    }
+                }
+            }
+        }
     }
     
     // Heat distribution between particles
     applyHeatDistribution() {
-        // Implementation for heat distribution
+        // Skip if grid is not initialized
+        if (!this.grid) return;
+        
+        // Very simple heat distribution - just a placeholder for now
+        // In a full implementation, this would transfer heat between adjacent particles
     }
     
     // Random phenomena generation
@@ -351,14 +425,14 @@ class ElementRegistry {
     // Get elements by category
     getElementsByCategory(category) {
         const categoryMap = {
-            'basic': ['sand', 'water', 'fire', 'stone'],
-            'fire': ['fire', 'lava', 'torch', 'fuse'],
-            'gas': ['smoke', 'steam'],
-            'liquid': ['water', 'oil', 'lava', 'acid', 'tar', 'sludge', 'napalm', 'glue'],
-            'powder': ['sand', 'salt', 'gunpowder', 'explosive-powder'],
             'environmental': ['wind', 'heat', 'cold'],
-            'explosive': ['gunpowder', 'c4', 'explosive-powder', 'dynamite'],
-            'special': ['torch', 'plant', 'metal', 'glass', 'brick', 'battery', 'bulb', 'switch', 'wire']
+            'eraser': ['eraser'],
+            'solid-powder': ['bacteria', 'fertilizer', 'explosive-powder', 'gunpowder', 'glass-shard', 'salt', 'sand', 'snow', 'ash'],
+            'solid': ['brick', 'fuse', 'glass', 'ice', 'c4', 'crystal', 'dynamite', 'metal', 'stone', 'solid-salt', 
+                      'plant', 'resin', 'steel', 'solid-ash', 'wood', 'battery', 'bulb', 'switch', 'faucet', 'torch'],
+            'gas': ['fire', 'bubble', 'balloon', 'steam', 'smoke'],
+            'liquid': ['acid', 'glue', 'lava', 'napalm', 'oil', 'tar', 'water', 'sludge'],
+            'electrical': ['battery', 'bulb', 'static-charge', 'switch', 'wire']
         };
         
         const elementNames = categoryMap[category] || [];

@@ -22,6 +22,20 @@ let activeEnvironmentTool = null; // Wind, heat, cold
 let windDirection = 'right'; // For wind: 'left', 'right', 'up', 'down'
 let envToolStrength = 5; // Default strength
 
+// Debug variables to track pause state changes
+let _isPaused = false;
+Object.defineProperty(window, 'isPaused', {
+    get: function() {
+        return _isPaused;
+    },
+    set: function(value) {
+        if (_isPaused !== value) {
+            console.log(`isPaused changed from ${_isPaused} to ${value}`, new Error().stack);
+        }
+        _isPaused = value;
+    }
+});
+
 // Initialize ElementRegistry as a global variable if not already defined
 if (!window.ElementRegistry) {
     window.ElementRegistry = {
@@ -417,7 +431,6 @@ let brushSize = 6; // Default brush size
 let overrideMode = false;
 let noBoundariesMode = false; // New setting for removing floor/ceiling
 let frameCounter = 0;
-let isPaused = false;
 let lastFpsUpdate = 0;
 let lastSpawnTime = 0;
 const spawnIntervalMs = 100;
@@ -541,11 +554,15 @@ function getRandomCell() {
 
 // Begin update function
 function update() {
-    // Skip updates if paused
-    if (isPaused) {
-        // Still update FPS counter and particle count while paused
-        updateFPS();
-        updateParticleCount();
+    // Always draw particles regardless of pause state
+    drawParticles();
+    
+    // Always update UI elements like FPS and particle count
+    updateFPS();
+    updateParticleCount();
+    
+    // Skip physics updates if paused
+    if (window.isPaused) {
         return;
     }
     
@@ -623,9 +640,6 @@ function update() {
         }
     }
     
-    // Draw particles to canvas
-    drawParticles();
-    
     // Apply active environmental tools if mouse is pressed
     if (isMouseDown && lastMousePos && window.ElementRegistry) {
         const envTools = window.ElementRegistry.getAllEnvironmentalTools ? 
@@ -702,17 +716,15 @@ function update() {
             }
         }
     }
-    
-    // Update the FPS counter
-    updateFPS();
-    
-    // Update the particle counter
-    updateParticleCount();
 
+    // Always allow adding particles with mouse regardless of pause state
     const now = performance.now();
     if (isMouseDown && lastMousePos && (now - lastSpawnTime) >= spawnIntervalMs) {
         window.ElementLoader.createParticlesWithBrush(lastMousePos.x, lastMousePos.y, grid, isInBounds);
         lastSpawnTime = now;
+        
+        // Force a redraw to ensure particles are visible immediately
+        drawParticles();
     }
 }
 
@@ -761,6 +773,8 @@ function setupCanvasEvents() {
         // Optionally, spawn once immediately:
         if (window.ElementLoader) {
             window.ElementLoader.createParticlesWithBrush(exactX, exactY, grid, isInBounds);
+            // Force immediate redraw to show particles even when paused
+            drawParticles();
         }
     });
     
@@ -774,6 +788,8 @@ function setupCanvasEvents() {
         const newY = ((e.clientY - rect.top) * scaleY) / CELL_SIZE;
         if (isMouseDown && lastMousePos) {
             interpolateLine(lastMousePos.x, lastMousePos.y, newX, newY);
+            // Force redraw immediately to show changes when paused
+            drawParticles();
         }
         lastMousePos = { x: newX, y: newY };
     });
@@ -809,6 +825,9 @@ function interpolateLine(x1, y1, x2, y2) {
             window.ElementLoader.createParticlesWithBrush(x, y, grid, isInBounds);
         }
     }
+    
+    // Force a redraw to ensure particles are visible immediately, especially when paused
+    drawParticles();
 }
 
 // Apply environmental effects
@@ -2182,10 +2201,22 @@ function setupUIControls() {
     // Pause button
     const pauseBtn = document.getElementById('pause-btn');
     if (pauseBtn) {
-        pauseBtn.addEventListener('click', function() {
-            isPaused = !isPaused;
-            pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
-            pauseBtn.title = isPaused ? 'Resume simulation' : 'Pause simulation';
+        // Set initial text based on current state
+        pauseBtn.textContent = window.isPaused ? 'Resume' : 'Pause';
+        pauseBtn.title = window.isPaused ? 'Resume simulation' : 'Pause simulation';
+        
+        pauseBtn.addEventListener('click', function(event) {
+            // Prevent event from affecting other UI
+            event.stopPropagation();
+            
+            // Toggle pause state
+            window.isPaused = !window.isPaused;
+            
+            // Update button text
+            pauseBtn.textContent = window.isPaused ? 'Resume' : 'Pause';
+            pauseBtn.title = window.isPaused ? 'Resume simulation' : 'Pause simulation';
+            
+            console.log(`Simulation ${window.isPaused ? 'paused' : 'resumed'}`);
         });
     }
     
@@ -2220,16 +2251,43 @@ function setupUIControls() {
         });
     }
     
-    // No-boundaries toggle
-    const noBoundariesToggle = document.getElementById('no-boundaries-toggle');
-    if (noBoundariesToggle) {
-        noBoundariesToggle.checked = noBoundariesMode;
-        noBoundariesToggle.addEventListener('change', function() {
-            noBoundariesMode = this.checked;
+    // No-boundaries toggle (now a button)
+    const noBoundariesBtn = document.getElementById('no-boundaries-btn');
+    if (noBoundariesBtn) {
+        // Update button appearance based on current state
+        updateNoBoundariesButtonState();
+        
+        noBoundariesBtn.addEventListener('click', function(event) {
+            // Prevent the event from affecting other components
+            event.stopPropagation();
+            
+            // Toggle the state
+            noBoundariesMode = !noBoundariesMode;
+            
+            // Update button appearance
+            updateNoBoundariesButtonState();
+            
+            // Display notification to inform the user
             showNotification(noBoundariesMode ? 
                 'Floor and ceiling removed' : 
                 'Floor and ceiling restored', 'info');
+                
+            console.log(`No-boundaries mode ${noBoundariesMode ? 'enabled' : 'disabled'}`);
         });
+    }
+    
+    // Helper function to update no-boundaries button appearance
+    function updateNoBoundariesButtonState() {
+        const btn = document.getElementById('no-boundaries-btn');
+        if (btn) {
+            if (noBoundariesMode) {
+                btn.textContent = "Restore Floor/Ceiling";
+                btn.classList.add('active');
+            } else {
+                btn.textContent = "Remove Floor/Ceiling";
+                btn.classList.remove('active');
+            }
+        }
     }
     
     // Override toggle
@@ -2280,6 +2338,9 @@ function drawParticles() {
         }
     }
 }
+
+// Make drawParticles function available globally
+window.drawParticles = drawParticles;
 
 // Update FPS counter
 let lastTime = 0;

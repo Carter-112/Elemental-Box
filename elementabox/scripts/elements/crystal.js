@@ -1,526 +1,244 @@
-// Crystal element module
-window.CrystalElement = {
+// Crystal Element
+// A solid that grows over time with temperature-dependent growth
+
+const CrystalElement = {
     name: 'crystal',
-    defaultColor: '#A4F9F3', // Light turquoise
-    density: 2.8,            // High density
-    durability: 0.6,         // Fairly durable
-    flammable: false,
-    defaultTemperature: 25,
-    stickiness: 0.1,         // Not very sticky
-    isLiquid: false,
+    label: 'Crystal',
+    description: 'A solid that grows over time, faster when cold and slower when hot',
+    category: 'solid',
+    defaultColor: '#88CCEE',
+    
+    // Physical properties
+    density: 2.5,
     isGas: false,
+    isLiquid: false,
     isPowder: false,
-    reflectivity: 0.9,       // Highly reflective
-    growthChance: 0.005,     // Small chance to grow
+    isSolid: true,
+    isStatic: true,
+    isSpawner: false,
+    isElectrical: false,
     
-    // Process crystal particles
+    // Behavior properties
+    flammable: false,
+    conductive: false,
+    explosive: false,
+    reactive: false,
+    corrosive: false,
+    temperature: 25, // room temperature by default
+    
+    // Called when the element is created
+    updateOnCreate: function(particle) {
+        particle.processed = false;
+        particle.growth = 0; // Track growth progress
+        particle.growthDirection = Math.floor(Math.random() * 8); // Random growth direction
+        particle.integrity = 1.0; // Full integrity when created
+        return particle;
+    },
+    
+    // Process the element's behavior
     process: function(x, y, grid, isInBounds) {
-        if (!grid[y][x] || grid[y][x].processed) return;
+        // Skip if already processed
+        if (grid[y][x].processed) return;
         
-        const crystal = grid[y][x];
-        crystal.processed = true;
+        // Mark as processed
+        grid[y][x].processed = true;
         
-        // Initialize crystal properties if they don't exist
-        if (crystal.size === undefined) {
-            crystal.size = 1;  // Base size
-            crystal.facets = Math.floor(Math.random() * 3) + 3;  // 3-5 facets
-            crystal.hue = Math.random() < 0.3 ? 
-                this.getRandomHue() : 
-                (180 + Math.floor(Math.random() * 40) - 20); // Usually turquoise, sometimes random
+        // Initialize properties if not set
+        if (grid[y][x].growth === undefined) {
+            grid[y][x].growth = 0;
         }
         
-        // Check if we can fall (for isolated crystals)
-        if (!this.isSupported(x, y, grid, isInBounds)) {
-            this.tryToFall(x, y, grid, isInBounds);
-            return;
+        if (grid[y][x].growthDirection === undefined) {
+            grid[y][x].growthDirection = Math.floor(Math.random() * 8);
         }
         
-        // Handle temperature effects
-        this.handleTemperatureEffects(x, y, grid, isInBounds);
+        // Temperature affects growth rate
+        let growthRate = 0.01; // Base growth rate
         
-        // Attempt to grow the crystal
-        this.tryToGrow(x, y, grid, isInBounds);
-        
-        // Handle light/energy interactions (like prism effects)
-        this.handleLightInteractions(x, y, grid, isInBounds);
-    },
-    
-    // Get a random hue for crystal variants
-    getRandomHue: function() {
-        const hues = [
-            0,    // Red
-            60,   // Yellow
-            120,  // Green
-            240,  // Blue
-            280,  // Purple
-            320   // Pink
-        ];
-        return hues[Math.floor(Math.random() * hues.length)];
-    },
-    
-    // Check if the crystal is supported
-    isSupported: function(x, y, grid, isInBounds) {
-        // If at the bottom of the grid, it's supported by the ground
-        if (y >= grid.length - 1) return true;
-        
-        // Check if supported from below
-        if (grid[y+1][x] && this.isSolidSupport(grid[y+1][x].type)) {
-            return true;
+        // Colder = faster growth
+        if (grid[y][x].temperature < 0) {
+            growthRate = 0.04;
+        } else if (grid[y][x].temperature < 10) {
+            growthRate = 0.02;
         }
         
-        // Check if part of a crystal structure
-        if (this.isPartOfCrystalStructure(x, y, grid, isInBounds)) {
-            return true;
-        }
-        
-        return false;
-    },
-    
-    // Check if crystal is part of a larger structure
-    isPartOfCrystalStructure: function(x, y, grid, isInBounds) {
-        // Check all 8 directions for connected crystals
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-            { dx: -1, dy: -1 }, // up-left
-            { dx: 1, dy: -1 },  // up-right
-            { dx: -1, dy: 1 },  // down-left
-            { dx: 1, dy: 1 }    // down-right
-        ];
-        
-        // For a crystal to be part of a structure, it needs at least 2 neighboring crystals
-        let connectedCrystals = 0;
-        
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
+        // Hotter = slower growth or even breakdown
+        if (grid[y][x].temperature > 80) {
+            // Too hot - crystal starts to shatter
+            if (!grid[y][x].integrity) {
+                grid[y][x].integrity = 1.0;
+            }
             
-            if (isInBounds(newX, newY) && grid[newY][newX] && 
-                (grid[newY][newX].type === 'crystal' || 
-                 this.isSolidSupport(grid[newY][newX].type))) {
-                connectedCrystals++;
+            grid[y][x].integrity -= 0.01;
+            
+            if (grid[y][x].integrity <= 0 || Math.random() < 0.005) {
+                // Shatter from the edges
+                const neighbors = [
+                    { dx: -1, dy: 0 }, // left
+                    { dx: 1, dy: 0 },  // right
+                    { dx: 0, dy: -1 }, // up
+                    { dx: 0, dy: 1 },  // down
+                    { dx: -1, dy: -1 }, // top-left
+                    { dx: 1, dy: -1 },  // top-right
+                    { dx: -1, dy: 1 },  // bottom-left
+                    { dx: 1, dy: 1 }    // bottom-right
+                ];
                 
-                // Connected to at least 2 crystals or solid supports
-                if (connectedCrystals >= 2) {
-                    return true;
+                // Check if this crystal piece is at the edge
+                let isAtEdge = false;
+                for (const dir of neighbors) {
+                    const nx = x + dir.dx;
+                    const ny = y + dir.dy;
+                    
+                    if (!isInBounds(nx, ny) || !grid[ny][nx] || 
+                        (grid[ny][nx].type !== 'crystal')) {
+                        isAtEdge = true;
+                        break;
+                    }
+                }
+                
+                if (isAtEdge) {
+                    // Convert to glass shard when shattered
+                    grid[y][x] = {
+                        type: 'glass-shard',
+                        color: '#AADDEE',
+                        temperature: grid[y][x].temperature,
+                        processed: true,
+                        isGas: false,
+                        isLiquid: false,
+                        isPowder: true,
+                        isSolid: false
+                    };
+                    return;
                 }
             }
-        }
-        
-        return false;
-    },
-    
-    // Check if a material type can support crystal
-    isSolidSupport: function(type) {
-        return ['crystal', 'stone', 'brick', 'metal', 'steel', 'glass', 'salt'].includes(type);
-    },
-    
-    // Try to make isolated crystal fall
-    tryToFall: function(x, y, grid, isInBounds) {
-        // Check if we can fall directly down
-        if (y < grid.length - 1 && !grid[y+1][x]) {
-            grid[y+1][x] = grid[y][x];
-            grid[y][x] = null;
+            
+            // No growth when hot
             return;
+        } else if (grid[y][x].temperature > 50) {
+            growthRate = 0.005;
         }
         
-        // Try to slide down diagonally (less likely as it's a crystal)
-        if (Math.random() < 0.3) {  // 30% chance to try sliding
+        // Grow the crystal
+        grid[y][x].growth += growthRate;
+        
+        if (grid[y][x].growth >= 1.0) {
+            // Reset growth progress
+            grid[y][x].growth = 0;
+            
+            // Determine growth direction
             const directions = [
-                { dx: -1, dy: 1 }, // down-left
-                { dx: 1, dy: 1 }   // down-right
+                { dx: 0, dy: -1 },  // up
+                { dx: 1, dy: -1 },  // up-right
+                { dx: 1, dy: 0 },   // right
+                { dx: 1, dy: 1 },   // down-right
+                { dx: 0, dy: 1 },   // down
+                { dx: -1, dy: 1 },  // down-left
+                { dx: -1, dy: 0 },  // left
+                { dx: -1, dy: -1 }  // up-left
             ];
             
-            // Randomize direction to avoid bias
-            if (Math.random() < 0.5) {
-                directions.reverse();
+            // Try to grow in the preferred direction first
+            const preferredDir = directions[grid[y][x].growthDirection];
+            const nx = x + preferredDir.dx;
+            const ny = y + preferredDir.dy;
+            
+            if (isInBounds(nx, ny) && !grid[ny][nx]) {
+                // Grow crystal in the preferred direction
+                grid[ny][nx] = {
+                    type: 'crystal',
+                    color: this.defaultColor,
+                    temperature: grid[y][x].temperature,
+                    processed: true,
+                    isGas: false,
+                    isLiquid: false,
+                    isPowder: false,
+                    isSolid: true,
+                    isStatic: true,
+                    growth: 0,
+                    growthDirection: (grid[y][x].growthDirection + Math.floor(Math.random() * 3) - 1 + 8) % 8 // Similar to parent with small variation
+                };
+                return;
             }
             
-            for (const dir of directions) {
-                const newX = x + dir.dx;
-                const newY = y + dir.dy;
+            // If can't grow in preferred direction, try other directions
+            const shuffledDirs = [...directions];
+            for (let i = shuffledDirs.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledDirs[i], shuffledDirs[j]] = [shuffledDirs[j], shuffledDirs[i]];
+            }
+            
+            for (const dir of shuffledDirs) {
+                const nx = x + dir.dx;
+                const ny = y + dir.dy;
                 
-                if (isInBounds(newX, newY) && !grid[newY][newX]) {
-                    grid[newY][newX] = grid[y][x];
-                    grid[y][x] = null;
+                if (isInBounds(nx, ny) && !grid[ny][nx]) {
+                    // Grow crystal in this direction
+                    grid[ny][nx] = {
+                        type: 'crystal',
+                        color: this.defaultColor,
+                        temperature: grid[y][x].temperature,
+                        processed: true,
+                        isGas: false,
+                        isLiquid: false,
+                        isPowder: false,
+                        isSolid: true,
+                        isStatic: true,
+                        growth: 0,
+                        growthDirection: Array.prototype.indexOf.call(directions, dir)
+                    };
                     return;
                 }
             }
         }
     },
     
-    // Handle temperature effects on crystal
-    handleTemperatureEffects: function(x, y, grid, isInBounds) {
-        const crystal = grid[y][x];
-        let totalTemp = crystal.temperature;
-        let count = 1;
+    // Custom rendering function
+    render: function(ctx, x, y, particle, cellSize) {
+        // Base crystal color
+        ctx.fillStyle = particle.color || this.defaultColor;
         
-        // Check surrounding cells for temperature influence
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-        ];
+        // Draw a faceted crystal shape
+        const centerX = x * cellSize + cellSize / 2;
+        const centerY = y * cellSize + cellSize / 2;
         
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
+        // Determine the crystal shape based on growth direction
+        const direction = particle.growthDirection || 0;
+        
+        ctx.beginPath();
+        
+        // Create a crystalline shape with multiple points
+        const points = 5;
+        const outerRadius = cellSize * 0.4;
+        const innerRadius = cellSize * 0.2;
+        
+        for (let i = 0; i < points * 2; i++) {
+            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+            const angle = (Math.PI * 2 * i / (points * 2)) + (direction * Math.PI / 4);
             
-            if (isInBounds(newX, newY) && grid[newY][newX]) {
-                totalTemp += grid[newY][newX].temperature;
-                count++;
-                
-                // Extreme heat can melt crystal
-                if (grid[newY][newX].temperature > 1200) {
-                    if (Math.random() < 0.05) { // 5% chance to melt per frame at extreme temp
-                        grid[y][x] = this.createMoltenCrystal(crystal);
-                        return;
-                    }
-                }
-                
-                // Extreme cold can make crystal grow faster
-                if (grid[newY][newX].temperature < 0 && Math.random() < 0.1) {
-                    crystal.growthChance = (crystal.growthChance || this.growthChance) * 1.5;
-                }
-            }
-        }
-        
-        // Update temperature (crystals conduct heat slowly)
-        crystal.temperature = (crystal.temperature * 0.8) + (totalTemp / count * 0.2);
-    },
-    
-    // Try to grow the crystal in open directions
-    tryToGrow: function(x, y, grid, isInBounds) {
-        const crystal = grid[y][x];
-        const growthChance = crystal.growthChance || this.growthChance;
-        
-        // Base chance for growth
-        if (Math.random() > growthChance) return;
-        
-        // Crystals need support to grow
-        if (!this.isSupported(x, y, grid, isInBounds)) return;
-        
-        // Prefer to grow toward water/salt water if present
-        let waterDirection = null;
-        
-        // Check all 8 directions for growth possibilities
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-            { dx: -1, dy: -1 }, // up-left
-            { dx: 1, dy: -1 },  // up-right
-            { dx: -1, dy: 1 },  // down-left
-            { dx: 1, dy: 1 }    // down-right
-        ];
-        
-        // Shuffle directions to randomize growth
-        for (let i = directions.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [directions[i], directions[j]] = [directions[j], directions[i]];
-        }
-        
-        // First scan for water to preferentially grow toward
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
+            const px = centerX + radius * Math.cos(angle);
+            const py = centerY + radius * Math.sin(angle);
             
-            if (isInBounds(newX, newY) && grid[newY][newX]) {
-                if (grid[newY][newX].type === 'water' || 
-                    (grid[newY][newX].type === 'salt_water')) {
-                    waterDirection = dir;
-                    break;
-                }
-            }
-        }
-        
-        // If water found, try to grow in that direction
-        if (waterDirection) {
-            const newX = x + waterDirection.dx;
-            const newY = y + waterDirection.dy;
-            
-            if (grid[newY][newX].type === 'salt_water') {
-                // Higher chance to grow into salt water
-                if (Math.random() < 0.3) {
-                    grid[newY][newX] = this.createCrystalParticle(crystal);
-                    // Consume the salt water
-                    return;
-                }
-            } else if (grid[newY][newX].type === 'water') {
-                // Lower chance to grow into regular water
-                if (Math.random() < 0.1) {
-                    grid[newY][newX] = this.createCrystalParticle(crystal);
-                    // Consume the water
-                    return;
-                }
-            }
-        }
-        
-        // Otherwise try to grow in any empty direction
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (isInBounds(newX, newY) && !grid[newY][newX]) {
-                // Growth more likely upward
-                const growthProbability = dir.dy < 0 ? 0.7 : 0.3;
-                
-                if (Math.random() < growthProbability) {
-                    grid[newY][newX] = this.createCrystalParticle(crystal);
-                    return;
-                }
-            }
-        }
-    },
-    
-    // Create a new crystal particle for growth
-    createCrystalParticle: function(parent) {
-        return {
-            type: 'crystal',
-            color: parent.color || this.getCrystalColor(parent.hue || 180),
-            temperature: parent.temperature,
-            processed: false,
-            flammable: false,
-            density: this.density,
-            hue: parent.hue || 180,
-            facets: parent.facets || Math.floor(Math.random() * 3) + 3,
-            size: Math.max(1, (parent.size || 1) - 0.2 + (Math.random() * 0.4)),
-            growthChance: Math.max(0.001, (parent.growthChance || this.growthChance) * 0.9)
-        };
-    },
-    
-    // Create molten crystal when melted
-    createMoltenCrystal: function(crystal) {
-        return {
-            type: 'lava',
-            color: this.adjustColorBrightness(this.getCrystalColor(crystal.hue || 180), 50),
-            temperature: 1300,
-            processed: false,
-            flammable: false,
-            density: 2.2, // Slightly less dense than solid crystal
-            isLiquid: true,
-            isMoltenCrystal: true
-        };
-    },
-    
-    // Get crystal color based on hue
-    getCrystalColor: function(hue) {
-        return `hsl(${hue}, 70%, 80%)`;
-    },
-    
-    // Adjust color brightness
-    adjustColorBrightness: function(color, percent) {
-        // A simple implementation for HSL colors
-        if (color.startsWith('hsl')) {
-            // Extract hue from hsl(h, s%, l%)
-            const hue = parseInt(color.substring(4, color.indexOf(',')));
-            return `hsl(${hue}, 100%, ${Math.min(90, 50 + percent)}%)`;
-        }
-        return color; // Return original if not HSL
-    },
-    
-    // Handle light interactions (prism effects)
-    handleLightInteractions: function(x, y, grid, isInBounds) {
-        const crystal = grid[y][x];
-        
-        // Crystal reflects light and energy
-        // Check for nearby light sources (fire, lava, electricity)
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-        ];
-        
-        let lightSource = false;
-        
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (isInBounds(newX, newY) && grid[newY][newX]) {
-                const neighbor = grid[newY][newX];
-                
-                // Check for light sources
-                if (neighbor.type === 'fire' || 
-                    neighbor.type === 'lava' || 
-                    neighbor.charged || 
-                    neighbor.lit) {
-                    
-                    lightSource = true;
-                    
-                    // Save info about light for rendering
-                    crystal.illuminated = true;
-                    crystal.lightColor = neighbor.color || 
-                        (neighbor.type === 'fire' ? '#FF9900' : 
-                        (neighbor.type === 'lava' ? '#FF4500' : '#FFFFFF'));
-                    
-                    // If not already reflecting, find where to reflect light
-                    if (!crystal.reflecting && Math.random() < 0.3) {
-                        this.createLightReflection(x, y, grid, isInBounds, neighbor, dir);
-                    }
-                }
-            }
-        }
-        
-        // Reset illumination if no light sources nearby
-        if (!lightSource) {
-            crystal.illuminated = false;
-            crystal.reflecting = false;
-            crystal.lightColor = null;
-        }
-    },
-    
-    // Create light reflection/refraction effect
-    createLightReflection: function(x, y, grid, isInBounds, lightSource, incidentDir) {
-        const crystal = grid[y][x];
-        
-        // Determine refraction direction (opposite of incident)
-        let refractionDir = {
-            dx: -incidentDir.dx,
-            dy: -incidentDir.dy
-        };
-        
-        // Randomize slightly for crystal facets
-        if (Math.random() < 0.5) {
-            if (Math.random() < 0.5) {
-                refractionDir = { dx: refractionDir.dy, dy: refractionDir.dx };
+            if (i === 0) {
+                ctx.moveTo(px, py);
             } else {
-                refractionDir = { dx: -refractionDir.dy, dy: -refractionDir.dx };
+                ctx.lineTo(px, py);
             }
         }
         
-        // Find the cell to refract light into
-        const newX = x + refractionDir.dx;
-        const newY = y + refractionDir.dy;
+        ctx.closePath();
+        ctx.fill();
         
-        if (isInBounds(newX, newY) && !grid[newY][newX]) {
-            // Create a temporary light effect particle
-            grid[newY][newX] = {
-                type: 'light',
-                color: this.getPrismColor(crystal.hue || 180),
-                temperature: 30,
-                processed: true,
-                density: 0.1,
-                isGas: true,
-                lifetime: 3 + Math.floor(Math.random() * 5),
-                age: 0,
-                isTemporary: true
-            };
-            
-            // Mark the crystal as reflecting
-            crystal.reflecting = true;
-        }
-    },
-    
-    // Get a prism-refracted color
-    getPrismColor: function(baseHue) {
-        // Shift the hue based on refraction
-        const hueShift = Math.floor(Math.random() * 360);
-        return `hsl(${hueShift}, 100%, 70%)`;
-    },
-    
-    // Custom rendering for crystal
-    render: function(ctx, x, y, particle, CELL_SIZE) {
-        // Base crystal appearance
-        ctx.fillStyle = particle.color || this.getCrystalColor(particle.hue || 180);
-        
-        if (particle.size && particle.size < 0.9) {
-            // Smaller crystals appear as individual gems
-            const padding = CELL_SIZE * (1 - particle.size) / 2;
-            ctx.fillRect(
-                x * CELL_SIZE + padding, 
-                y * CELL_SIZE + padding, 
-                CELL_SIZE - padding * 2, 
-                CELL_SIZE - padding * 2
-            );
-        } else {
-            // Full-sized crystals
-            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        }
-        
-        // Draw crystal facets/structure
-        const facets = particle.facets || 4;
-        
-        // Draw facet lines
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.lineWidth = 1;
-        
-        const centerX = x * CELL_SIZE + CELL_SIZE / 2;
-        const centerY = y * CELL_SIZE + CELL_SIZE / 2;
-        
-        for (let i = 0; i < facets; i++) {
-            const angle = (i / facets) * Math.PI * 2;
-            const edgeX = centerX + Math.cos(angle) * (CELL_SIZE * 0.4);
-            const edgeY = centerY + Math.sin(angle) * (CELL_SIZE * 0.4);
-            
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
-            ctx.lineTo(edgeX, edgeY);
-            ctx.stroke();
-        }
-        
-        // Add sparkle effect
-        ctx.fillStyle = 'white';
-        const sparkleSize = CELL_SIZE * 0.1;
-        ctx.fillRect(
-            centerX - sparkleSize / 2,
-            centerY - sparkleSize / 2,
-            sparkleSize,
-            sparkleSize
-        );
-        
-        // If crystal is illuminated, add glow effect
-        if (particle.illuminated) {
-            // Create a radial gradient for the glow
-            const gradient = ctx.createRadialGradient(
-                centerX, centerY, 0,
-                centerX, centerY, CELL_SIZE
-            );
-            
-            const lightColor = particle.lightColor || 'white';
-            gradient.addColorStop(0, lightColor);
-            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-            
-            ctx.fillStyle = gradient;
-            ctx.globalAlpha = 0.5;
-            ctx.fillRect(
-                x * CELL_SIZE - CELL_SIZE / 2,
-                y * CELL_SIZE - CELL_SIZE / 2,
-                CELL_SIZE * 2,
-                CELL_SIZE * 2
-            );
-            ctx.globalAlpha = 1.0;
-        }
-        
-        // Show temperature effects
-        if (particle.temperature > 200) {
-            const temp = Math.min(1, (particle.temperature - 200) / 1000);
-            
-            // Crystal glows red-orange as it heats up
-            let r = 255;
-            let g = 100 + Math.floor(155 * (1 - temp));
-            let b = 100 + Math.floor(155 * (1 - temp));
-            
-            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${temp * 0.7})`;
-            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        }
-    },
-    
-    // Update particle on creation
-    updateOnCreate: function(particle) {
-        particle.temperature = this.defaultTemperature;
-        particle.hue = particle.hue || (Math.random() < 0.3 ? 
-            this.getRandomHue() : 
-            (180 + Math.floor(Math.random() * 40) - 20));
-        particle.color = this.getCrystalColor(particle.hue);
-        particle.facets = particle.facets || Math.floor(Math.random() * 3) + 3;
-        particle.size = particle.size || 1;
-        particle.growthChance = particle.growthChance || this.growthChance;
-        return particle;
+        // Add a highlight effect
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.beginPath();
+        ctx.moveTo(centerX - cellSize * 0.1, centerY - cellSize * 0.1);
+        ctx.lineTo(centerX + cellSize * 0.1, centerY - cellSize * 0.3);
+        ctx.lineTo(centerX + cellSize * 0.2, centerY - cellSize * 0.2);
+        ctx.closePath();
+        ctx.fill();
     }
-}; 
+};
+
+// Make the element available globally
+window.CrystalElement = CrystalElement; 

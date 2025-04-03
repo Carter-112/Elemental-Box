@@ -1,228 +1,221 @@
-// Gunpowder element module
-window.GunpowderElement = {
+// Gunpowder Element
+// A powder that explodes when heated, with a moderate blast radius
+
+const GunpowderElement = {
     name: 'gunpowder',
-    defaultColor: '#444444', // Dark gray
-    density: 1.8,            // Medium density
-    durability: 0.1,         // Fragile
-    flammable: true,
-    defaultTemperature: 25,
-    stickiness: 0,
-    isLiquid: false,
-    isGas: false,
-    isPowder: true,
-    explosionRadius: 3,      // Moderate explosion
+    label: 'Gunpowder',
+    description: 'A powder that explodes when exposed to significant heat',
+    category: 'solid-powder',
+    defaultColor: '#333333', // Dark gray/black color
     
-    // Process gunpowder particles
+    // Physical properties
+    density: 0.7,
+    isGas: false,
+    isLiquid: false,
+    isPowder: true,
+    isSolid: false,
+    isStatic: false,
+    isSpawner: false,
+    isElectrical: false,
+    
+    // Behavior properties
+    flammable: true,
+    conductive: false,
+    explosive: true,
+    reactive: true,
+    corrosive: false,
+    temperature: 25, // room temperature by default
+    
+    // Called when the element is created
+    updateOnCreate: function(particle) {
+        particle.processed = false;
+        particle.temperature = this.temperature;
+        particle.stability = 100; // Full stability
+        return particle;
+    },
+    
+    // Process the element's behavior
     process: function(x, y, grid, isInBounds) {
-        if (!grid[y][x] || grid[y][x].processed) return;
+        // Skip if already processed
+        if (grid[y][x].processed) return;
         
-        const gunpowder = grid[y][x];
-        gunpowder.processed = true;
+        // Mark as processed
+        grid[y][x].processed = true;
         
-        // Check for ignition
-        if (this.shouldIgnite(x, y, gunpowder, grid, isInBounds)) {
+        // Check for explosion trigger conditions
+        // Gunpowder needs more heat to explode than explosive powder
+        const isHot = grid[y][x].temperature > 100; // Less sensitive to heat
+        
+        // Reduce stability when hot
+        if (isHot) {
+            grid[y][x].stability -= 3 + (grid[y][x].temperature - 100) / 20;
+        }
+        
+        // If unstable, explode!
+        if (grid[y][x].stability <= 0) {
             this.explode(x, y, grid, isInBounds);
             return;
         }
         
-        // Gunpowder behaves like powder
-        this.moveLikePowder(x, y, grid, isInBounds);
-    },
-    
-    // Check if gunpowder should ignite
-    shouldIgnite: function(x, y, gunpowder, grid, isInBounds) {
-        // High temperature can ignite gunpowder
-        if (gunpowder.temperature >= 200) {
-            return true;
-        }
-        
-        // Check for ignition sources nearby
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-            { dx: -1, dy: -1 }, // up-left
-            { dx: 1, dy: -1 },  // up-right
-            { dx: -1, dy: 1 },  // down-left
-            { dx: 1, dy: 1 }    // down-right
-        ];
-        
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (!isInBounds(newX, newY)) continue;
-            
-            const neighbor = grid[newY][newX];
-            if (!neighbor) continue;
-            
-            // Fire ignites gunpowder
-            if (neighbor.type === 'fire') {
-                return Math.random() < 0.7; // 70% chance
+        // Gunpowder falls with gravity like other powders
+        if (y < grid.length - 1) {
+            // Try to move directly down
+            if (!grid[y + 1][x]) {
+                grid[y + 1][x] = grid[y][x];
+                grid[y][x] = null;
+                return;
             }
             
-            // Lava ignites gunpowder
-            if (neighbor.type === 'lava') {
-                return Math.random() < 0.5; // 50% chance
-            }
+            // Try to slide to bottom-left or bottom-right
+            const randomDirection = Math.random() < 0.5;
             
-            // Explosions ignite gunpowder
-            if (neighbor.isExplosion) {
-                return true;
-            }
-            
-            // Burning particles can ignite gunpowder
-            if (neighbor.burning && neighbor.burnDuration > 0) {
-                return Math.random() < 0.3; // 30% chance
-            }
-            
-            // Other exploding gunpowder ignites this one (chain reaction)
-            if (neighbor.type === 'gunpowder' && neighbor.ignited) {
-                return true;
-            }
-        }
-        
-        return false;
-    },
-    
-    // Move like a powder
-    moveLikePowder: function(x, y, grid, isInBounds) {
-        if (y >= grid.length - 1) return; // At bottom of grid
-        
-        // Check if we can move straight down
-        if (!grid[y+1][x]) {
-            grid[y+1][x] = grid[y][x];
-            grid[y][x] = null;
-            return;
-        }
-        
-        // Try to slide down diagonally
-        const diagX = Math.random() < 0.5 ? [x-1, x+1] : [x+1, x-1];
-        
-        for (const newX of diagX) {
-            if (isInBounds(newX, y+1) && !grid[y+1][newX]) {
-                grid[y+1][newX] = grid[y][x];
+            if (randomDirection && x > 0 && !grid[y + 1][x - 1]) {
+                grid[y + 1][x - 1] = grid[y][x];
+                grid[y][x] = null;
+                return;
+            } else if (!randomDirection && x < grid[0].length - 1 && !grid[y + 1][x + 1]) {
+                grid[y + 1][x + 1] = grid[y][x];
                 grid[y][x] = null;
                 return;
             }
         }
-    },
-    
-    // Explode gunpowder
-    explode: function(x, y, grid, isInBounds) {
-        // Mark as ignited first for chain reactions
-        grid[y][x].ignited = true;
         
-        // Explosion radius based on amount of gunpowder
-        let radius = this.explosionRadius;
+        // Check for interactions with surrounding cells
+        const neighbors = [
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 },  // right
+            { dx: 0, dy: -1 }, // up
+            { dx: 0, dy: 1 },  // down
+            { dx: -1, dy: -1 }, // top-left
+            { dx: 1, dy: -1 },  // top-right
+            { dx: -1, dy: 1 },  // bottom-left
+            { dx: 1, dy: 1 }    // bottom-right
+        ];
         
-        // Add brief delay for chain reactions to look better
-        setTimeout(() => {
-            // Remove the particle
-            grid[y][x] = null;
+        for (const dir of neighbors) {
+            const nx = x + dir.dx;
+            const ny = y + dir.dy;
             
-            // Create explosion particles and destroy nearby particles
-            for (let dy = -radius; dy <= radius; dy++) {
-                for (let dx = -radius; dx <= radius; dx++) {
-                    // Only affect points within the circular radius
-                    const distance = Math.sqrt(dx*dx + dy*dy);
-                    if (distance > radius) continue;
-                    
-                    const newX = x + dx;
-                    const newY = y + dy;
-                    
-                    if (!isInBounds(newX, newY)) continue;
-                    
-                    // Create explosion effect (fire particles)
-                    if (distance < radius * 0.7 && Math.random() < 0.7) {
-                        grid[newY][newX] = {
-                            type: 'fire',
-                            color: '#ff9900',
-                            temperature: 500,
-                            processed: true,
-                            burnDuration: 5 + Math.random() * 10,
-                            isExplosion: true
-                        };
-                    } 
-                    // Destroy nearby particles with probability based on distance
-                    else if (grid[newY][newX] && Math.random() < (1 - distance/radius)) {
-                        // Different materials resist explosions differently
-                        if (grid[newY][newX].type === 'stone' || 
-                            grid[newY][newX].type === 'metal' || 
-                            grid[newY][newX].type === 'steel' || 
-                            grid[newY][newX].type === 'brick') {
-                            if (Math.random() < 0.3) {
-                                grid[newY][newX] = null;
-                            }
-                        } else {
-                            grid[newY][newX] = null;
-                        }
-                    }
+            if (!isInBounds(nx, ny) || !grid[ny][nx]) continue;
+            
+            // Interactions with fire - quick explosion, but not immediate
+            if (grid[ny][nx].type === 'fire') {
+                grid[y][x].stability -= 25; // Lose 25% stability when touching fire
+                
+                // Change color to show it's heating up
+                grid[y][x].color = '#663333';
+                return;
+            }
+            
+            // Interactions with lava - quicker explosion
+            if (grid[ny][nx].type === 'lava') {
+                grid[y][x].stability -= 30; // Lose 30% stability when touching lava
+                
+                // Change color to show it's heating up rapidly
+                grid[y][x].color = '#993333';
+                return;
+            }
+            
+            // Interactions with other explosives - chain reaction, but slower than explosive powder
+            if (grid[ny][nx].type === 'explosive-powder' || grid[ny][nx].type === 'gunpowder' || 
+                grid[ny][nx].type === 'c4' || grid[ny][nx].type === 'dynamite') {
+                
+                // If the neighbor is unstable, this powder becomes more unstable too
+                if (grid[ny][nx].stability && grid[ny][nx].stability < 30) {
+                    grid[y][x].stability -= 1;
                 }
             }
             
-            // Create some smoke after explosion
-            for (let i = 0; i < 5; i++) {
-                const smokeX = x + Math.floor(Math.random() * radius * 2 - radius);
-                const smokeY = y + Math.floor(Math.random() * radius * 2 - radius);
+            // Transfer heat from hot neighbors
+            if (grid[ny][nx].temperature && grid[ny][nx].temperature > grid[y][x].temperature) {
+                grid[y][x].temperature += (grid[ny][nx].temperature - grid[y][x].temperature) * 0.05;
+            }
+        }
+        
+        // Change color based on temperature to show it's heating up
+        if (grid[y][x].temperature > 50) {
+            const tempRatio = Math.min(1, (grid[y][x].temperature - 50) / 50);
+            const r = Math.floor(51 + tempRatio * (153 - 51));
+            const g = Math.floor(51 * (1 - tempRatio));
+            const b = Math.floor(51 * (1 - tempRatio));
+            grid[y][x].color = `rgb(${r}, ${g}, ${b})`;
+        }
+    },
+    
+    // Create an explosion
+    explode: function(x, y, grid, isInBounds) {
+        // Moderate explosion radius (smaller than explosive powder)
+        const radius = 4;
+        
+        // Remove the exploding particle
+        grid[y][x] = null;
+        
+        // Explosion effect - destroy blocks in radius and create fire/smoke
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const distance = Math.sqrt(dx*dx + dy*dy);
+                if (distance > radius) continue;
                 
-                if (isInBounds(smokeX, smokeY) && !grid[smokeY][smokeX]) {
-                    grid[smokeY][smokeX] = {
-                        type: 'smoke',
-                        color: '#777777',
-                        temperature: 100,
-                        processed: false,
+                const nx = x + dx;
+                const ny = y + dy;
+                
+                if (!isInBounds(nx, ny)) continue;
+                
+                // Force decreases with distance
+                const force = 1 - (distance / radius);
+                
+                // Clear existing particles with probability based on force
+                if (grid[ny][nx] && Math.random() < force * 0.8) {
+                    // Certain materials resist explosion (like steel, stone)
+                    if (grid[ny][nx].type === 'steel' || grid[ny][nx].type === 'stone') {
+                        // Add damage but don't destroy immediately
+                        grid[ny][nx].damage = (grid[ny][nx].damage || 0) + force * 30;
+                        if (grid[ny][nx].damage > 100) {
+                            grid[ny][nx] = null;
+                        }
+                    } else {
+                        // Other materials are destroyed
+                        grid[ny][nx] = null;
+                    }
+                }
+                
+                // Create fire and smoke with probability based on force and distance
+                if (!grid[ny][nx] && Math.random() < force * 0.5) {
+                    const particleType = Math.random() < 0.6 ? 'fire' : 'smoke';
+                    
+                    grid[ny][nx] = {
+                        type: particleType,
+                        color: particleType === 'fire' ? '#FF4500' : '#A9A9A9',
+                        temperature: particleType === 'fire' ? 400 : 150,
+                        processed: true,
                         isGas: true,
-                        density: 0.1,
-                        lifetime: 100 + Math.floor(Math.random() * 100),
-                        age: 0
+                        isLiquid: false,
+                        isPowder: false,
+                        isSolid: false,
+                        lifetime: particleType === 'fire' ? 
+                            15 + Math.floor(Math.random() * 25) : 
+                            40 + Math.floor(Math.random() * 80)
                     };
                 }
             }
-        }, 50); // Small delay
-    },
-    
-    // Custom rendering for gunpowder
-    render: function(ctx, x, y, particle, CELL_SIZE) {
-        // Base color
-        ctx.fillStyle = particle.color;
-        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        
-        // Add granular texture
-        const granuleCount = 3;
-        const granuleSize = CELL_SIZE / 6;
-        
-        ctx.fillStyle = '#222222'; // Darker spots
-        
-        for (let i = 0; i < granuleCount; i++) {
-            const granuleX = x * CELL_SIZE + Math.random() * (CELL_SIZE - granuleSize);
-            const granuleY = y * CELL_SIZE + Math.random() * (CELL_SIZE - granuleSize);
-            
-            ctx.fillRect(granuleX, granuleY, granuleSize, granuleSize);
-        }
-        
-        // If ignited, show ignition effect
-        if (particle.ignited) {
-            ctx.fillStyle = 'rgba(255, 153, 0, 0.7)';
-            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            
-            // Add spark effect
-            ctx.fillStyle = '#FFFF00';
-            const sparkSize = CELL_SIZE / 4;
-            const sparkX = x * CELL_SIZE + CELL_SIZE / 2;
-            const sparkY = y * CELL_SIZE + CELL_SIZE / 2;
-            
-            ctx.beginPath();
-            ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
-            ctx.fill();
         }
     },
     
-    // Update particle on creation
-    updateOnCreate: function(particle) {
-        particle.temperature = this.defaultTemperature;
-        particle.ignited = false;
-        return particle;
+    // Render the gunpowder
+    render: function(ctx, x, y, particle, cellSize) {
+        ctx.fillStyle = particle.color || this.defaultColor;
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        
+        // Add speckles to gunpowder for visual interest
+        if (Math.random() < 0.2) {
+            const speckleSize = Math.max(1, Math.floor(cellSize / 8));
+            ctx.fillStyle = '#555555';
+            const speckleX = x * cellSize + Math.floor(Math.random() * (cellSize - speckleSize));
+            const speckleY = y * cellSize + Math.floor(Math.random() * (cellSize - speckleSize));
+            ctx.fillRect(speckleX, speckleY, speckleSize, speckleSize);
+        }
     }
-}; 
+};
+
+// Make the element available globally
+window.GunpowderElement = GunpowderElement; 

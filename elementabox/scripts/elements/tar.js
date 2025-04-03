@@ -1,371 +1,287 @@
-// Tar element module
-window.TarElement = {
+// Tar Element
+// A thick black liquid that burns slowly and sticks to things
+
+const TarElement = {
     name: 'tar',
-    defaultColor: '#222222', // Almost black
-    density: 1.5,            // Denser than water
-    durability: 0.8,         // Quite durable
-    flammable: true,
-    burnTemperature: 400,    // Takes more heat to burn than oil
-    defaultTemperature: 25,
-    stickiness: 0.9,         // Very sticky
-    isLiquid: true,
+    label: 'Tar',
+    description: 'A thick, black liquid that burns slowly and sticks to things',
+    category: 'liquid',
+    defaultColor: '#111111',
+    
+    // Physical properties
+    density: 1.2, // Denser than water
     isGas: false,
+    isLiquid: true,
     isPowder: false,
-    viscosity: 0.9,          // Very viscous (0-1 scale)
-    burnDuration: 300,       // Burns for a long time but less than napalm
+    isSolid: false,
+    isStatic: false,
+    isSpawner: false,
+    isElectrical: false,
     
-    // Process tar particles
+    // Behavior properties
+    flammable: true, // Burns slowly
+    conductive: false,
+    explosive: false,
+    reactive: false,
+    corrosive: false,
+    viscosity: 0.85, // Very viscous, flows slowly
+    temperature: 25, // Room temperature
+    ignitionTemp: 120, // Temperature at which it catches fire
+    burnRate: 0.05, // Burns slowly
+    
+    // Called when the element is created
+    updateOnCreate: function(particle) {
+        particle.processed = false;
+        particle.burning = false;
+        particle.burnTimer = 0;
+        particle.stickiness = 0.95; // High stickiness value
+        particle.viscosity = 0.85;
+        particle.velocity = { x: 0, y: 0.1 }; // Slow downward movement
+        return particle;
+    },
+    
+    // Process the element's behavior
     process: function(x, y, grid, isInBounds) {
-        if (!grid[y][x] || grid[y][x].processed) return;
+        // Skip if already processed
+        if (grid[y][x].processed) return;
         
-        const tar = grid[y][x];
-        tar.processed = true;
+        // Mark as processed
+        grid[y][x].processed = true;
         
-        // Handle burning
-        if (tar.burning) {
-            this.processBurning(x, y, grid, isInBounds);
-            return;
+        // Initialize properties if not set
+        if (grid[y][x].burning === undefined) {
+            grid[y][x].burning = false;
+        }
+        if (grid[y][x].burnTimer === undefined) {
+            grid[y][x].burnTimer = 0;
+        }
+        if (grid[y][x].stickiness === undefined) {
+            grid[y][x].stickiness = 0.95;
+        }
+        if (grid[y][x].viscosity === undefined) {
+            grid[y][x].viscosity = 0.85;
+        }
+        if (grid[y][x].velocity === undefined) {
+            grid[y][x].velocity = { x: 0, y: 0.1 };
         }
         
-        // Check for ignition
-        if (this.shouldIgnite(x, y, tar, grid, isInBounds)) {
-            tar.burning = true;
-            tar.temperature = this.burnTemperature;
-            tar.burnDuration = this.burnDuration;
-            return;
+        // Temperature effects
+        if (grid[y][x].temperature >= grid[y][x].ignitionTemp && !grid[y][x].burning) {
+            grid[y][x].burning = true;
+            grid[y][x].burnTimer = 0;
         }
         
-        // Handle hardening at low temperatures
-        if (tar.temperature < 0 && !tar.hardened) {
-            this.hardenTar(x, y, grid);
-            return;
-        }
-        
-        // Handle softening if previously hardened
-        if (tar.hardened && tar.temperature > 5) {
-            tar.hardened = false;
-        }
-        
-        // Tar moves like a very viscous liquid if not hardened
-        if (!tar.hardened) {
-            this.moveLikeViscousLiquid(x, y, grid, isInBounds);
-        }
-        
-        // Tar can trap and slow down particles
-        this.trapParticles(x, y, grid, isInBounds);
-    },
-    
-    // Process burning tar
-    processBurning: function(x, y, grid, isInBounds) {
-        const tar = grid[y][x];
-        
-        // Decrease burn duration
-        tar.burnDuration--;
-        
-        // If burn duration is over, remove the particle
-        if (tar.burnDuration <= 0) {
-            // Create smoke when tar is completely burned
-            if (y > 0 && !grid[y-1][x]) {
-                grid[y-1][x] = {
-                    type: 'smoke',
-                    color: '#333333', // Dark smoke
-                    temperature: 100,
-                    processed: false,
-                    isGas: true,
-                    density: 0.1,
-                    lifetime: 150 + Math.floor(Math.random() * 100),
-                    age: 0
+        // Handle burning state
+        if (grid[y][x].burning) {
+            // Increase temperature while burning
+            grid[y][x].temperature += 1;
+            
+            // Increment burn timer
+            grid[y][x].burnTimer++;
+            
+            // Chance to spread fire to flammable neighbors
+            if (grid[y][x].burnTimer % 10 === 0) {
+                // Look at neighboring cells
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+                        
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        
+                        if (isInBounds(nx, ny) && grid[ny][nx]) {
+                            // If neighbor is flammable, chance to ignite it
+                            if (grid[ny][nx].flammable && !grid[ny][nx].burning && 
+                                grid[ny][nx].temperature < grid[ny][nx].ignitionTemp) {
+                                // Heat up neighbor
+                                grid[ny][nx].temperature += 10;
+                                
+                                // Small chance to directly ignite
+                                if (Math.random() < 0.1) {
+                                    grid[ny][nx].burning = true;
+                                    grid[ny][nx].burnTimer = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Tar burns for a long time before turning to ash
+            if (grid[y][x].burnTimer > 500) { // Long burn time
+                // Turn into ash
+                grid[y][x] = {
+                    type: 'ash',
+                    color: '#333333',
+                    temperature: Math.min(grid[y][x].temperature, 200),
+                    processed: true,
+                    isPowder: true,
+                    isLiquid: false,
+                    isGas: false,
+                    isSolid: false
                 };
-            }
-            
-            grid[y][x] = null;
-            return;
-        }
-        
-        // Generate heat
-        tar.temperature = this.burnTemperature;
-        
-        // Create fire particles above
-        if (y > 0 && !grid[y-1][x] && Math.random() < 0.3) {
-            grid[y-1][x] = {
-                type: 'fire',
-                color: '#ff6600',
-                temperature: this.burnTemperature,
-                processed: true,
-                burnDuration: 15 + Math.floor(Math.random() * 20),
-                fromTar: true
-            };
-        }
-        
-        // Create smoke with small probability
-        if (y > 0 && Math.random() < 0.1) {
-            // Find a place to put the smoke (above or to the sides)
-            const smokeDirections = [
-                { dx: 0, dy: -1 },  // up
-                { dx: -1, dy: -1 }, // up-left
-                { dx: 1, dy: -1 },  // up-right
-            ];
-            
-            for (const dir of smokeDirections) {
-                const newX = x + dir.dx;
-                const newY = y + dir.dy;
-                
-                if (isInBounds(newX, newY) && !grid[newY][newX]) {
-                    grid[newY][newX] = {
-                        type: 'smoke',
-                        color: '#333333', // Dark smoke
-                        temperature: 100,
-                        processed: false,
-                        isGas: true,
-                        density: 0.1,
-                        lifetime: 80 + Math.floor(Math.random() * 100),
-                        age: 0
-                    };
-                    break;
-                }
-            }
-        }
-        
-        // Tar ignites neighboring flammable materials
-        this.spreadFire(x, y, grid, isInBounds);
-    },
-    
-    // Check if tar should ignite
-    shouldIgnite: function(x, y, tar, grid, isInBounds) {
-        // Hardened tar is harder to ignite
-        const ignitionTemp = tar.hardened ? this.burnTemperature + 50 : this.burnTemperature;
-        
-        // Ignite at high temperature
-        if (tar.temperature >= ignitionTemp) {
-            return true;
-        }
-        
-        // Check for ignition sources nearby
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-            { dx: -1, dy: -1 }, // up-left
-            { dx: 1, dy: -1 },  // up-right
-            { dx: -1, dy: 1 },  // down-left
-            { dx: 1, dy: 1 }    // down-right
-        ];
-        
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (!isInBounds(newX, newY)) continue;
-            
-            const neighbor = grid[newY][newX];
-            if (!neighbor) continue;
-            
-            // Fire ignites tar
-            if (neighbor.type === 'fire') {
-                return Math.random() < (tar.hardened ? 0.2 : 0.5); // Hardened tar is harder to ignite
-            }
-            
-            // Lava ignites tar
-            if (neighbor.type === 'lava') {
-                return Math.random() < (tar.hardened ? 0.4 : 0.7);
-            }
-            
-            // Burning particles can ignite tar
-            if (neighbor.burning && neighbor.burnDuration > 0) {
-                return Math.random() < (tar.hardened ? 0.1 : 0.3);
-            }
-        }
-        
-        return false;
-    },
-    
-    // Spread fire to nearby flammable objects
-    spreadFire: function(x, y, grid, isInBounds) {
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-        ];
-        
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (!isInBounds(newX, newY)) continue;
-            
-            const neighbor = grid[newY][newX];
-            if (!neighbor) continue;
-            
-            // Heat up neighboring particles
-            if (neighbor.temperature !== undefined) {
-                neighbor.temperature += 10;
-            }
-            
-            // Ignite flammable neighbors
-            if (neighbor.flammable && !neighbor.burning) {
-                if (Math.random() < 0.3) { // 30% chance
-                    neighbor.burning = true;
-                    neighbor.burnDuration = neighbor.burnDuration || 100;
-                    neighbor.temperature = Math.max(neighbor.temperature || 25, 250);
-                }
-            }
-        }
-    },
-    
-    // Harden tar into a solid
-    hardenTar: function(x, y, grid) {
-        grid[y][x].hardened = true;
-        grid[y][x].isLiquid = false; // No longer behaves as a liquid
-        grid[y][x].color = '#111111'; // Slightly darker when hardened
-    },
-    
-    // Move like a viscous liquid
-    moveLikeViscousLiquid: function(x, y, grid, isInBounds) {
-        // High viscosity means slow movement
-        const flowChance = 0.95 - this.viscosity; // Higher viscosity = lower chance to flow
-        
-        // Liquid movement - try to fall down first but with viscosity factored in
-        if (y < grid.length - 1 && !grid[y+1][x]) {
-            if (Math.random() < flowChance) {
-                grid[y+1][x] = grid[y][x];
-                grid[y][x] = null;
                 return;
             }
         }
         
-        // Try to spread horizontally with even lower probability
-        if (Math.random() < flowChance * 0.5) {
-            const direction = Math.random() < 0.5 ? -1 : 1;
-            const newX = x + direction;
+        // Tar movement
+        let moved = false;
+        
+        // Calculate next potential position based on viscosity
+        if (Math.random() > grid[y][x].viscosity) {
+            // Check below first
+            if (isInBounds(x, y + 1) && !grid[y + 1][x]) {
+                grid[y + 1][x] = grid[y][x];
+                grid[y][x] = null;
+                moved = true;
+            }
             
-            if (isInBounds(newX, y) && !grid[y][newX]) {
-                // Check if there's support below or if we're at bottom
-                if (y >= grid.length - 1 || grid[y+1][newX]) {
-                    grid[y][newX] = grid[y][x];
+            // If can't move down, check diagonal down
+            if (!moved) {
+                const diagonalDir = Math.random() < 0.5 ? -1 : 1;
+                
+                if (isInBounds(x + diagonalDir, y + 1) && !grid[y + 1][x + diagonalDir]) {
+                    grid[y + 1][x + diagonalDir] = grid[y][x];
                     grid[y][x] = null;
-                    return;
+                    moved = true;
+                }
+            }
+            
+            // If can't move diagonally, try to spread horizontally (more rarely due to viscosity)
+            if (!moved && Math.random() > 0.7) {
+                const horizontalDir = Math.random() < 0.5 ? -1 : 1;
+                
+                if (isInBounds(x + horizontalDir, y) && !grid[y][x + horizontalDir]) {
+                    grid[y][x + horizontalDir] = grid[y][x];
+                    grid[y][x] = null;
+                    moved = true;
+                }
+            }
+        }
+        
+        // If tar didn't move, check if it should stick to or trap something above it
+        if (!moved) {
+            // Check above for particles that might fall into tar
+            if (isInBounds(x, y - 1) && grid[y - 1][x]) {
+                const above = grid[y - 1][x];
+                
+                // If above particle is heavier than tar and not static
+                if (!above.isStatic && above.density > grid[y][x].density) {
+                    // Chance to slow down the falling particle based on stickiness
+                    if (Math.random() < grid[y][x].stickiness) {
+                        // Reduce velocity if the particle has it
+                        if (above.velocity) {
+                            above.velocity.y *= 0.5;
+                            above.velocity.x *= 0.3;
+                        }
+                        
+                        // If it's another tar or liquid, chance to merge
+                        if (above.type === 'tar' || (above.isLiquid && Math.random() < 0.3)) {
+                            // Combine properties
+                            grid[y][x].temperature = (grid[y][x].temperature + above.temperature) / 2;
+                            grid[y - 1][x] = null;
+                        }
+                    }
                 }
             }
         }
     },
     
-    // Trap and slow down particles that come into contact with tar
-    trapParticles: function(x, y, grid, isInBounds) {
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-        ];
+    // Custom rendering function
+    render: function(ctx, x, y, particle, cellSize) {
+        // Base tar color
+        const baseColor = particle.color || this.defaultColor;
         
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (!isInBounds(newX, newY)) continue;
-            
-            const neighbor = grid[newY][newX];
-            if (!neighbor) continue;
-            
-            // Skip other tar particles and very dense objects
-            if (neighbor.type === 'tar' || neighbor.density > 5) continue;
-            
-            // Add trapped status to neighboring particles
-            if (!neighbor.tarTrapped) {
-                neighbor.tarTrapped = true;
-                neighbor.originalDensity = neighbor.density;
-                
-                // Increase density to make it harder to move
-                neighbor.density = Math.min(10, neighbor.density * 1.5);
-                
-                // Slow down any particle with velocity
-                if (neighbor.velocity) {
-                    neighbor.velocity.x *= 0.5;
-                    neighbor.velocity.y *= 0.5;
-                }
-            }
-        }
-    },
-    
-    // Custom rendering for tar
-    render: function(ctx, x, y, particle, CELL_SIZE) {
-        // Base color depends on state
-        let baseColor = particle.color;
-        if (particle.burning) {
-            // Calculate a burning color based on burn duration
-            const burnPhase = particle.burnDuration / this.burnDuration;
-            const r = 255;
-            const g = Math.floor(102 * burnPhase);
-            const b = 0;
-            baseColor = `rgb(${r},${g},${b})`;
-        }
-        
-        // Fill the cell with base color
+        // Draw the tar with a thick, glossy effect
         ctx.fillStyle = baseColor;
-        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        ctx.fillRect(
+            x * cellSize, 
+            y * cellSize, 
+            cellSize, 
+            cellSize
+        );
         
+        // Add glossy highlight effect
+        ctx.fillStyle = 'rgba(50, 50, 50, 0.3)';
+        ctx.beginPath();
+        ctx.ellipse(
+            x * cellSize + cellSize * 0.5,
+            y * cellSize + cellSize * 0.3,
+            cellSize * 0.3,
+            cellSize * 0.15,
+            0,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+        
+        // If burning, add fire effect
         if (particle.burning) {
-            // Add flame effect on top
-            const flameBrightness = Math.floor(Math.random() * 100) + 155;
-            ctx.fillStyle = `rgba(${flameBrightness}, ${flameBrightness/2}, 0, 0.7)`;
+            // Flicker intensity based on burn timer
+            const flickerIntensity = 0.5 + Math.sin(particle.burnTimer * 0.2) * 0.2;
             
-            // Random flame height
-            const flameHeight = CELL_SIZE * (0.3 + Math.random() * 0.3);
-            ctx.beginPath();
-            ctx.moveTo(x * CELL_SIZE, y * CELL_SIZE);
-            ctx.lineTo(x * CELL_SIZE + CELL_SIZE/2, y * CELL_SIZE - flameHeight);
-            ctx.lineTo(x * CELL_SIZE + CELL_SIZE, y * CELL_SIZE);
-            ctx.fill();
-        } else if (particle.hardened) {
-            // Hardened tar has a crusty texture
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            // Fire gradient
+            const fireGradient = ctx.createRadialGradient(
+                x * cellSize + cellSize / 2,
+                y * cellSize + cellSize / 2,
+                0,
+                x * cellSize + cellSize / 2,
+                y * cellSize + cellSize / 2,
+                cellSize * 0.8
+            );
             
-            // Create a cracked pattern
-            const crackSize = CELL_SIZE * 0.15;
-            const cracks = [
-                {x1: 0.2, y1: 0.2, x2: 0.8, y2: 0.8},
-                {x1: 0.8, y1: 0.2, x2: 0.2, y2: 0.8},
-                {x1: 0.5, y1: 0.1, x2: 0.5, y2: 0.9}
-            ];
+            fireGradient.addColorStop(0, `rgba(255, 100, 0, ${flickerIntensity * 0.8})`);
+            fireGradient.addColorStop(0.6, `rgba(200, 50, 0, ${flickerIntensity * 0.4})`);
+            fireGradient.addColorStop(1, 'rgba(100, 0, 0, 0)');
             
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = 'rgba(40, 40, 40, 0.5)';
+            ctx.fillStyle = fireGradient;
+            ctx.fillRect(
+                x * cellSize - cellSize * 0.25,
+                y * cellSize - cellSize * 0.5,
+                cellSize * 1.5,
+                cellSize * 1.5
+            );
             
-            cracks.forEach(crack => {
+            // Add smoke particles occasionally
+            if (Math.random() < 0.2) {
+                ctx.fillStyle = 'rgba(40, 40, 40, 0.3)';
+                const smokeX = x * cellSize + Math.random() * cellSize;
+                const smokeY = y * cellSize - Math.random() * cellSize * 0.5;
+                const smokeSize = cellSize * (0.1 + Math.random() * 0.1);
+                
                 ctx.beginPath();
-                ctx.moveTo(
-                    x * CELL_SIZE + crack.x1 * CELL_SIZE,
-                    y * CELL_SIZE + crack.y1 * CELL_SIZE
-                );
-                ctx.lineTo(
-                    x * CELL_SIZE + crack.x2 * CELL_SIZE,
-                    y * CELL_SIZE + crack.y2 * CELL_SIZE
-                );
-                ctx.stroke();
-            });
-        } else {
-            // Liquid tar has a glossy look
-            ctx.fillStyle = 'rgba(70, 70, 70, 0.3)';
+                ctx.arc(smokeX, smokeY, smokeSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // Add drippy effect at bottom edge
+        if (Math.random() < 0.05) {
+            const dripX = x * cellSize + Math.random() * cellSize;
+            const dripWidth = cellSize * 0.1;
+            const dripHeight = cellSize * (0.2 + Math.random() * 0.3);
+            
+            ctx.fillStyle = baseColor;
+            ctx.fillRect(
+                dripX - dripWidth / 2,
+                y * cellSize + cellSize,
+                dripWidth,
+                dripHeight
+            );
+            
+            // Add a small rounded bottom to the drip
             ctx.beginPath();
             ctx.arc(
-                x * CELL_SIZE + CELL_SIZE * 0.3,
-                y * CELL_SIZE + CELL_SIZE * 0.3,
-                CELL_SIZE * 0.2,
+                dripX,
+                y * cellSize + cellSize + dripHeight,
+                dripWidth / 2,
                 0,
                 Math.PI * 2
             );
             ctx.fill();
         }
-    },
-    
-    // Update particle on creation
-    updateOnCreate: function(particle) {
-        particle.temperature = this.defaultTemperature;
-        particle.burning = false;
-        particle.hardened = false;
-        particle.viscosity = this.viscosity;
-        return particle;
     }
-}; 
+};
+
+// Make the element available globally
+window.TarElement = TarElement; 

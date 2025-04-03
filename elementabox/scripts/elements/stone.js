@@ -1,227 +1,306 @@
-// Stone element module
-window.StoneElement = {
+// Stone Element
+// A solid material that can be eroded by water
+
+const StoneElement = {
     name: 'stone',
-    defaultColor: '#808080',  // Gray
-    density: 2.7,             // Heavier than sand, similar to brick
-    durability: 0.85,         // Very durable
-    flammable: false,
-    defaultTemperature: 25,
-    stickiness: 0.1,          // Slightly sticky
-    isLiquid: false,
+    label: 'Stone',
+    description: 'A solid material that can be eroded by water over time',
+    category: 'solid',
+    defaultColor: '#777777',
+    
+    // Physical properties
+    density: 2.7, // Denser than most common materials
     isGas: false,
+    isLiquid: false,
     isPowder: false,
+    isSolid: true,
+    isStatic: true, // Doesn't move unless forced
+    isSpawner: false,
+    isElectrical: false,
     
-    // Process stone particles
+    // Behavior properties
+    flammable: false,
+    conductive: false,
+    explosive: false,
+    reactive: true, // Reacts with water
+    corrosive: false,
+    meltingPoint: 1200, // High melting point
+    temperature: 25, // Room temperature
+    
+    // Called when the element is created
+    updateOnCreate: function(particle) {
+        particle.processed = false;
+        particle.erosion = 0; // Track erosion level from 0 to 100
+        particle.variations = Math.floor(Math.random() * 4); // Visual variations
+        return particle;
+    },
+    
+    // Process the element's behavior
     process: function(x, y, grid, isInBounds) {
-        if (!grid[y][x] || grid[y][x].processed) return;
+        // Skip if already processed
+        if (grid[y][x].processed) return;
         
-        const stone = grid[y][x];
-        stone.processed = true;
+        // Mark as processed
+        grid[y][x].processed = true;
         
-        // Stone can fall if not supported
-        if (!this.isSupported(x, y, grid, isInBounds)) {
-            this.tryToFall(x, y, grid, isInBounds);
-            return;
+        // Initialize properties if not set
+        if (grid[y][x].erosion === undefined) {
+            grid[y][x].erosion = 0;
+        }
+        if (grid[y][x].variations === undefined) {
+            grid[y][x].variations = Math.floor(Math.random() * 4);
         }
         
-        // Stone can melt at very high temperatures (higher than metal)
-        if (stone.temperature >= 1200) {
-            // 5% chance to melt per frame at high temperature
-            if (Math.random() < 0.05) {
-                grid[y][x] = this.createLavaParticle();
-                return;
+        // Check for water around stone to simulate erosion
+        let waterCount = 0;
+        
+        // Check neighboring cells for water
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                
+                const nx = x + dx;
+                const ny = y + dy;
+                
+                if (isInBounds(nx, ny) && grid[ny][nx] && grid[ny][nx].type === 'water') {
+                    waterCount++;
+                    
+                    // Water movement increases erosion 
+                    if (grid[ny][nx].velocity && 
+                        (Math.abs(grid[ny][nx].velocity.x) > 0.2 || 
+                         Math.abs(grid[ny][nx].velocity.y) > 0.2)) {
+                        waterCount++;
+                    }
+                }
             }
         }
         
-        // Stone conducts heat, but less than metal
-        this.conductHeat(x, y, grid, isInBounds);
-    },
-    
-    // Check if the stone is supported
-    isSupported: function(x, y, grid, isInBounds) {
-        // If at the bottom of the grid, it's supported by the ground
-        if (y >= grid.length - 1) return true;
-        
-        // Check if supported from below
-        if (grid[y+1][x] && this.isSolidSupport(grid[y+1][x].type)) {
-            return true;
-        }
-        
-        // Check if part of a larger structure supported from sides
-        // This allows for horizontal structures like arches and overhangs
-        let leftSupport = false;
-        let rightSupport = false;
-        
-        // Check left
-        if (isInBounds(x-1, y) && grid[y][x-1] && this.isSolidSupport(grid[y][x-1].type)) {
-            leftSupport = true;
-        }
-        
-        // Check right
-        if (isInBounds(x+1, y) && grid[y][x+1] && this.isSolidSupport(grid[y][x+1].type)) {
-            rightSupport = true;
-        }
-        
-        // For stone to be supported horizontally, it needs support from both sides
-        // This is more restrictive than "stickier" materials like glue or resin
-        return leftSupport && rightSupport;
-    },
-    
-    // Check if a material type can support stone
-    isSolidSupport: function(type) {
-        return ['stone', 'brick', 'metal', 'steel', 'ice', 'crystal'].includes(type);
-    },
-    
-    // Make stone fall if unsupported
-    tryToFall: function(x, y, grid, isInBounds) {
-        // Check if we can fall directly down
-        if (y < grid.length - 1 && !grid[y+1][x]) {
-            grid[y+1][x] = grid[y][x];
-            grid[y][x] = null;
-            return;
-        }
-        
-        // Check if we can fall diagonally
-        const directions = [
-            { dx: -1, dy: 1 }, // down-left
-            { dx: 1, dy: 1 }   // down-right
-        ];
-        
-        // Randomize direction to avoid bias
-        if (Math.random() < 0.5) {
-            directions.reverse();
-        }
-        
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
+        // Apply erosion if water is present
+        if (waterCount > 0) {
+            // More water means faster erosion
+            grid[y][x].erosion += waterCount * 0.01;
             
-            if (isInBounds(newX, newY) && !grid[newY][newX]) {
-                grid[newY][newX] = grid[y][x];
-                grid[y][x] = null;
+            // If erosion reaches threshold, turn into sand
+            if (grid[y][x].erosion >= 100) {
+                grid[y][x] = {
+                    type: 'sand',
+                    color: '#D2B48C',
+                    processed: true,
+                    isGas: false,
+                    isLiquid: false,
+                    isPowder: true,
+                    isSolid: false
+                };
                 return;
             }
         }
-    },
-    
-    // Create lava when stone melts
-    createLavaParticle: function() {
-        return {
-            type: 'lava',
-            color: '#FF4500',
-            temperature: 1200,
-            processed: false,
-            flammable: false,
-            density: 1.8,
-            isLiquid: true
-        };
-    },
-    
-    // Heat conductivity for stone
-    conductHeat: function(x, y, grid, isInBounds) {
-        const stone = grid[y][x];
-        let totalTemp = stone.temperature;
+        
+        // Temperature effects - melting if temperature reaches melting point
+        if (grid[y][x].temperature >= grid[y][x].meltingPoint) {
+            // Convert to lava
+            grid[y][x] = {
+                type: 'lava',
+                color: '#FF4400',
+                temperature: grid[y][x].temperature,
+                processed: true,
+                isGas: false,
+                isLiquid: true,
+                isPowder: false,
+                isSolid: false
+            };
+            return;
+        }
+        
+        // Temperature equilibrium with surroundings (stone conducts heat slowly)
+        let totalTemp = grid[y][x].temperature;
         let count = 1;
         
-        // Stone conducts heat to adjacent cells
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 }   // down
-        ];
-        
-        // Collect temperatures from neighbors
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (isInBounds(newX, newY) && grid[newY][newX]) {
-                totalTemp += grid[newY][newX].temperature;
-                count++;
+        // Check neighboring cells for temperature conduction
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                
+                const nx = x + dx;
+                const ny = y + dy;
+                
+                if (isInBounds(nx, ny) && grid[ny][nx]) {
+                    totalTemp += grid[ny][nx].temperature;
+                    count++;
+                }
             }
         }
         
-        // Calculate new temperature with conductivity factor
+        // Stone conducts heat slowly
         const avgTemp = totalTemp / count;
-        const conductivity = 0.3; // Stone conducts heat less than metal
-        stone.temperature = stone.temperature * (1 - conductivity) + avgTemp * conductivity;
-    },
-    
-    // Custom rendering for stone
-    render: function(ctx, x, y, particle, CELL_SIZE) {
-        // Base stone color 
-        ctx.fillStyle = particle.color;
-        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        grid[y][x].temperature = grid[y][x].temperature * 0.95 + avgTemp * 0.05;
         
-        // Add stone texture with cracks and variations
-        // Create a unique pseudo-random pattern for this position
-        const seed = x * 10000 + y;
-        const rand = (n) => ((seed * (n + 1)) % 2341) / 2341;
-        
-        // Add cracks
-        ctx.strokeStyle = '#606060';
-        ctx.lineWidth = 1;
-        
-        // Draw a few random cracks
-        const crackCount = Math.floor(rand(1) * 3);
-        for (let i = 0; i < crackCount; i++) {
-            ctx.beginPath();
-            const startX = x * CELL_SIZE + rand(i*2) * CELL_SIZE;
-            const startY = y * CELL_SIZE + rand(i*3) * CELL_SIZE;
-            ctx.moveTo(startX, startY);
+        // Support physics - if there's no support below, stone can fall
+        if (isInBounds(x, y + 1) && !grid[y + 1][x]) {
+            // Check for supports on both sides
+            const leftSupport = isInBounds(x - 1, y + 1) && grid[y + 1][x - 1] && 
+                               (grid[y + 1][x - 1].isSolid || grid[y + 1][x - 1].isStatic);
+            const rightSupport = isInBounds(x + 1, y + 1) && grid[y + 1][x + 1] && 
+                                (grid[y + 1][x + 1].isSolid || grid[y + 1][x + 1].isStatic);
             
-            // Create zigzag crack
-            const points = 2 + Math.floor(rand(i*5) * 3);
-            for (let j = 0; j < points; j++) {
-                const nextX = startX + (rand(i*7+j) - 0.5) * CELL_SIZE;
-                const nextY = startY + (rand(i*11+j) - 0.5) * CELL_SIZE;
-                ctx.lineTo(nextX, nextY);
+            // If no support and nothing directly below, stone falls
+            if (!leftSupport && !rightSupport) {
+                // Convert to static: false to allow falling
+                grid[y][x].isStatic = false;
+                grid[y + 1][x] = grid[y][x];
+                grid[y][x] = null;
             }
-            
-            ctx.stroke();
-        }
-        
-        // Add variations in stone color
-        const patchCount = 1 + Math.floor(rand(4) * 3);
-        for (let i = 0; i < patchCount; i++) {
-            // Create patches of slightly different shades
-            const shade = -15 + rand(i*13) * 30;
-            ctx.fillStyle = this.adjustColor(particle.color, shade);
-            
-            const patchSize = CELL_SIZE * (0.2 + rand(i*17) * 0.3);
-            const patchX = x * CELL_SIZE + rand(i*19) * (CELL_SIZE - patchSize);
-            const patchY = y * CELL_SIZE + rand(i*23) * (CELL_SIZE - patchSize);
-            
-            ctx.globalAlpha = 0.4;
-            ctx.fillRect(patchX, patchY, patchSize, patchSize);
-            ctx.globalAlpha = 1.0;
-        }
-        
-        // Show heat effect if stone is very hot
-        if (particle.temperature > 600) {
-            const heatIntensity = Math.min(0.6, (particle.temperature - 600) / 1000);
-            ctx.fillStyle = `rgba(255, 50, 0, ${heatIntensity})`;
-            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
         }
     },
     
-    // Adjust color brightness
-    adjustColor: function(hex, amount) {
-        let r = parseInt(hex.substring(1, 3), 16);
-        let g = parseInt(hex.substring(3, 5), 16);
-        let b = parseInt(hex.substring(5, 7), 16);
+    // Custom rendering function
+    render: function(ctx, x, y, particle, cellSize) {
+        // Base color with variations
+        let baseColor = particle.color || this.defaultColor;
         
-        r = Math.max(0, Math.min(255, r + amount));
-        g = Math.max(0, Math.min(255, g + amount));
-        b = Math.max(0, Math.min(255, b + amount));
+        // Adjust color based on erosion level
+        if (particle.erosion > 0) {
+            // Gradually blend to a more sand-like color as erosion increases
+            const erosionRatio = particle.erosion / 100;
+            baseColor = this.blendColors(baseColor, '#D2B48C', erosionRatio * 0.7);
+        }
         
-        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        // Draw the stone with texture
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(
+            x * cellSize, 
+            y * cellSize, 
+            cellSize, 
+            cellSize
+        );
+        
+        // Add texture details
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        
+        // Different texture patterns based on variations
+        switch (particle.variations % 4) {
+            case 0:
+                // Small scattered dots
+                for (let i = 0; i < 3; i++) {
+                    const dotX = x * cellSize + Math.random() * cellSize;
+                    const dotY = y * cellSize + Math.random() * cellSize;
+                    const dotSize = cellSize * 0.1;
+                    
+                    ctx.beginPath();
+                    ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                break;
+                
+            case 1:
+                // Linear crack
+                ctx.beginPath();
+                ctx.moveTo(
+                    x * cellSize + cellSize * 0.2, 
+                    y * cellSize + cellSize * 0.3
+                );
+                ctx.lineTo(
+                    x * cellSize + cellSize * 0.8, 
+                    y * cellSize + cellSize * 0.7
+                );
+                ctx.lineWidth = cellSize * 0.05;
+                ctx.stroke();
+                break;
+                
+            case 2:
+                // Corner shadow
+                ctx.fillRect(
+                    x * cellSize, 
+                    y * cellSize, 
+                    cellSize * 0.3, 
+                    cellSize * 0.3
+                );
+                break;
+                
+            case 3:
+                // Central darker area
+                ctx.fillRect(
+                    x * cellSize + cellSize * 0.3, 
+                    y * cellSize + cellSize * 0.3, 
+                    cellSize * 0.4, 
+                    cellSize * 0.4
+                );
+                break;
+        }
+        
+        // Add a highlight for dimension
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(
+            x * cellSize, 
+            y * cellSize, 
+            cellSize * 0.2, 
+            cellSize * 0.2
+        );
+        
+        // If highly eroded, show cracks
+        if (particle.erosion > 50) {
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.lineWidth = 1;
+            
+            const crackCount = Math.floor(particle.erosion / 20);
+            for (let i = 0; i < crackCount; i++) {
+                const startX = x * cellSize + Math.random() * cellSize;
+                const startY = y * cellSize + Math.random() * cellSize;
+                
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                
+                // Create a jagged line for the crack
+                let currentX = startX;
+                let currentY = startY;
+                const segments = 2 + Math.floor(Math.random() * 3);
+                
+                for (let j = 0; j < segments; j++) {
+                    currentX += (Math.random() * cellSize * 0.4) - cellSize * 0.2;
+                    currentY += (Math.random() * cellSize * 0.4) - cellSize * 0.2;
+                    
+                    // Keep within cell bounds
+                    currentX = Math.max(x * cellSize, Math.min(currentX, (x + 1) * cellSize));
+                    currentY = Math.max(y * cellSize, Math.min(currentY, (y + 1) * cellSize));
+                    
+                    ctx.lineTo(currentX, currentY);
+                }
+                
+                ctx.stroke();
+            }
+        }
     },
     
-    // Update particle on creation
-    updateOnCreate: function(particle) {
-        particle.temperature = this.defaultTemperature;
-        return particle;
+    // Helper function to blend colors for erosion effects
+    blendColors: function(color1, color2, ratio) {
+        // Convert hex to RGB
+        const hex2rgb = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        };
+        
+        // Convert RGB to hex
+        const rgb2hex = (rgb) => {
+            return '#' + ((1 << 24) + (rgb.r << 16) + (rgb.g << 8) + rgb.b).toString(16).slice(1);
+        };
+        
+        const c1 = hex2rgb(color1);
+        const c2 = hex2rgb(color2);
+        
+        if (!c1 || !c2) return color1;
+        
+        const blended = {
+            r: Math.round(c1.r * (1 - ratio) + c2.r * ratio),
+            g: Math.round(c1.g * (1 - ratio) + c2.g * ratio),
+            b: Math.round(c1.b * (1 - ratio) + c2.b * ratio)
+        };
+        
+        return rgb2hex(blended);
     }
-}; 
+};
+
+// Make the element available globally
+window.StoneElement = StoneElement; 

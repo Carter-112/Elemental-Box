@@ -1,275 +1,278 @@
-// Oil element module
-window.OilElement = {
+// Oil Element
+// A flammable liquid that burns until gone
+
+const OilElement = {
     name: 'oil',
-    defaultColor: '#8B4513',
-    density: 0.85,  // Less dense than water, so will float on top
-    durability: 0.2,
-    flammable: true,
-    defaultTemperature: 25,
-    stickiness: 0.3,
-    isLiquid: true,
+    label: 'Oil',
+    description: 'A flammable liquid that burns with heat',
+    category: 'liquid',
+    defaultColor: '#4A3728',
+    
+    // Physical properties
+    density: 0.8, // Less dense than water
     isGas: false,
+    isLiquid: true,
     isPowder: false,
+    isSolid: false,
+    isStatic: false,
+    isSpawner: false,
+    isElectrical: false,
     
-    // Process oil particles
+    // Behavior properties
+    flammable: true,
+    conductive: false,
+    explosive: false,
+    reactive: true,
+    corrosive: false,
+    temperature: 25, // room temperature by default
+    
+    // Called when the element is created
+    updateOnCreate: function(particle) {
+        particle.processed = false;
+        particle.burning = false; // Whether it's currently on fire
+        particle.burnTimer = 0; // How long it's been burning
+        particle.amount = 1.0; // Full amount initially
+        return particle;
+    },
+    
+    // Process the element's behavior
     process: function(x, y, grid, isInBounds) {
-        if (!grid[y][x] || grid[y][x].processed) return;
+        // Skip if already processed
+        if (grid[y][x].processed) return;
         
-        const oil = grid[y][x];
-        oil.processed = true;
+        // Mark as processed
+        grid[y][x].processed = true;
         
-        // If oil is burning, process burning behavior
-        if (oil.burning) {
-            // Decrease burn duration
-            oil.burnDuration--;
+        // Initialize properties if not set
+        if (grid[y][x].burning === undefined) {
+            grid[y][x].burning = false;
+        }
+        
+        if (grid[y][x].burnTimer === undefined) {
+            grid[y][x].burnTimer = 0;
+        }
+        
+        if (grid[y][x].amount === undefined) {
+            grid[y][x].amount = 1.0;
+        }
+        
+        // Check if oil should ignite
+        const neighbors = [
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 },  // right
+            { dx: 0, dy: -1 }, // up
+            { dx: 0, dy: 1 },  // down
+            { dx: -1, dy: -1 }, // top-left
+            { dx: 1, dy: -1 },  // top-right
+            { dx: -1, dy: 1 },  // bottom-left
+            { dx: 1, dy: 1 }    // bottom-right
+        ];
+        
+        // Check temperature and neighbors
+        if (!grid[y][x].burning) {
+            // Ignite if temperature is high enough
+            if (grid[y][x].temperature >= 80) {
+                grid[y][x].burning = true;
+            }
             
-            // When fully burned, oil disappears
-            if (oil.burnDuration <= 0) {
-                grid[y][x] = null;
+            // Check neighbors for fire and other burning oil
+            for (const dir of neighbors) {
+                const nx = x + dir.dx;
+                const ny = y + dir.dy;
                 
-                // Create smoke when oil burns out
-                if (y > 0 && !grid[y-1][x]) {
-                    grid[y-1][x] = this.createSmokeParticle();
+                if (!isInBounds(nx, ny) || !grid[ny][nx]) continue;
+                
+                if (grid[ny][nx].type === 'fire' || 
+                    (grid[ny][nx].type === 'oil' && grid[ny][nx].burning) ||
+                    (grid[ny][nx].type === 'napalm' && grid[ny][nx].burning)) {
+                    grid[y][x].burning = true;
+                    break;
+                }
+            }
+        }
+        
+        // Oil burning behavior
+        if (grid[y][x].burning) {
+            // Increase temperature
+            grid[y][x].temperature = Math.min(grid[y][x].temperature + 2, 150);
+            
+            // Create fire particles above oil
+            if (y > 0 && Math.random() < 0.2) {
+                const fireX = x;
+                const fireY = y - 1;
+                
+                if (isInBounds(fireX, fireY) && !grid[fireY][fireX]) {
+                    grid[fireY][fireX] = {
+                        type: 'fire',
+                        color: '#FF9900',
+                        temperature: grid[y][x].temperature + 20,
+                        processed: true,
+                        isGas: true,
+                        isLiquid: false,
+                        isPowder: false,
+                        isSolid: false,
+                        lifetime: 5 + Math.floor(Math.random() * 5)
+                    };
+                }
+            }
+            
+            // Create smoke occasionally
+            if (y > 1 && Math.random() < 0.05) {
+                const smokeX = x + (Math.random() < 0.5 ? -1 : 1);
+                const smokeY = y - 2;
+                
+                if (isInBounds(smokeX, smokeY) && !grid[smokeY][smokeX]) {
+                    grid[smokeY][smokeX] = {
+                        type: 'smoke',
+                        color: '#555555',
+                        temperature: grid[y][x].temperature - 20,
+                        processed: true,
+                        isGas: true,
+                        isLiquid: false,
+                        isPowder: false,
+                        isSolid: false
+                    };
+                }
+            }
+            
+            // Change color as it burns
+            const burnProgress = Math.min(1.0, grid[y][x].burnTimer / 100);
+            const r = 74 + Math.floor(burnProgress * 181);
+            const g = 55 + Math.floor(burnProgress * 55);
+            const b = 40 + Math.floor(burnProgress * 10);
+            grid[y][x].color = `rgb(${r}, ${g}, ${b})`;
+            
+            // Oil gets consumed as it burns
+            grid[y][x].amount -= 0.005;
+            grid[y][x].burnTimer++;
+            
+            // If oil is consumed, it disappears
+            if (grid[y][x].amount <= 0) {
+                // Small chance to leave some ash
+                if (Math.random() < 0.1) {
+                    grid[y][x] = {
+                        type: 'ash',
+                        color: '#777777',
+                        temperature: grid[y][x].temperature - 30,
+                        processed: true,
+                        isGas: false,
+                        isLiquid: false,
+                        isPowder: true,
+                        isSolid: false
+                    };
+                } else {
+                    grid[y][x] = null;
                 }
                 return;
             }
+        }
+        
+        // Spread heat to neighbors
+        for (const dir of neighbors) {
+            const nx = x + dir.dx;
+            const ny = y + dir.dy;
             
-            // Oil spreads fire to nearby flammable materials and creates smoke
-            if (Math.random() < 0.4 && y > 0 && !grid[y-1][x]) {
-                grid[y-1][x] = this.createFireParticle();
+            if (!isInBounds(nx, ny) || !grid[ny][nx]) continue;
+            
+            // Heat transfer
+            if (grid[ny][nx].temperature !== undefined && grid[y][x].burning) {
+                const heatTransfer = (grid[y][x].temperature - grid[ny][nx].temperature) * 0.1;
+                if (heatTransfer > 0) {
+                    grid[ny][nx].temperature += heatTransfer;
+                }
             }
+        }
+        
+        // Oil doesn't mix with water, it floats on top
+        if (y < grid.length - 1 && grid[y + 1][x] && grid[y + 1][x].type === 'water') {
+            // Try to move to the sides on top of water
+            const leftX = x - 1;
+            const rightX = x + 1;
             
-            // Chance to create smoke while burning
-            if (Math.random() < 0.1 && y > 1 && !grid[y-2][x]) {
-                grid[y-2][x] = this.createSmokeParticle();
-            }
-            
-            // Spread fire to adjacent flammable materials
-            this.spreadFire(x, y, grid, isInBounds);
-            return;
-        }
-        
-        // Check if we're on fire or adjacent to fire
-        if (oil.temperature > 150 || this.isAdjacentToFire(x, y, grid, isInBounds)) {
-            oil.burning = true;
-            oil.burnDuration = 120; // Oil burns longer than other materials
-            return;
-        }
-        
-        // Check if we can fall
-        if (y < grid.length - 1 && !grid[y+1][x]) {
-            grid[y+1][x] = oil;
-            grid[y][x] = null;
-            return;
-        }
-        
-        // Oil spreads horizontally more readily than water
-        const directions = [
-            { dx: -1, dy: 1 }, // down-left
-            { dx: 1, dy: 1 },  // down-right
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 }   // right
-        ];
-        
-        // Shuffle the directions for more natural movement
-        for (let i = directions.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [directions[i], directions[j]] = [directions[j], directions[i]];
-        }
-        
-        // Try to move in one of the directions
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (isInBounds(newX, newY) && !grid[newY][newX]) {
-                grid[newY][newX] = oil;
+            if (isInBounds(leftX, y) && !grid[y][leftX]) {
+                grid[y][leftX] = grid[y][x];
                 grid[y][x] = null;
+                return;
+            } else if (isInBounds(rightX, y) && !grid[y][rightX]) {
+                grid[y][rightX] = grid[y][x];
+                grid[y][x] = null;
+                return;
+            }
+            
+            // If can't move to sides, and there's water below, try to swap positions
+            if (Math.random() < 0.1) {
+                const temp = grid[y][x];
+                grid[y][x] = grid[y + 1][x];
+                grid[y + 1][x] = temp;
                 return;
             }
         }
         
-        // Oil floats on water and other denser liquids
+        // Oil movement - falls with gravity
         if (y < grid.length - 1) {
-            const particleBelow = grid[y+1][x];
-            if (particleBelow && 
-                ((particleBelow.type === 'water' && particleBelow.density > this.density) || 
-                 this.shouldFloat(particleBelow))) {
-                
-                // Swap positions
-                grid[y][x] = particleBelow;
-                grid[y+1][x] = oil;
-                particleBelow.processed = true;
+            // Try to move directly down
+            if (!grid[y + 1][x]) {
+                grid[y + 1][x] = grid[y][x];
+                grid[y][x] = null;
                 return;
             }
         }
         
-        // Oil can also be displaced by denser materials from above
-        if (y > 0) {
-            const particleAbove = grid[y-1][x];
-            if (particleAbove && this.shouldSink(particleAbove)) {
-                // Swap positions
-                grid[y][x] = particleAbove;
-                grid[y-1][x] = oil;
-                particleAbove.processed = true;
+        // Oil spread - tries to move horizontally if can't move down
+        if (Math.random() < 0.4) {
+            const direction = Math.random() < 0.5 ? -1 : 1;
+            const nx = x + direction;
+            
+            if (isInBounds(nx, y) && !grid[y][nx]) {
+                grid[y][nx] = grid[y][x];
+                grid[y][x] = null;
                 return;
             }
         }
     },
     
-    // Helper function to determine if oil should float on a particle
-    shouldFloat: function(particle) {
-        return particle.density !== undefined && particle.density > this.density && particle.isLiquid;
-    },
-    
-    // Helper function to determine if a particle should sink through oil
-    shouldSink: function(particle) {
-        return particle.density !== undefined && particle.density > this.density && !particle.isGas;
-    },
-    
-    // Check if adjacent to fire
-    isAdjacentToFire: function(x, y, grid, isInBounds) {
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-            { dx: -1, dy: -1 }, // up-left
-            { dx: 1, dy: -1 },  // up-right
-            { dx: -1, dy: 1 },  // down-left
-            { dx: 1, dy: 1 }    // down-right
-        ];
+    // Custom rendering function
+    render: function(ctx, x, y, particle, cellSize) {
+        // Base oil color with some transparency
+        const baseColor = particle.color || this.defaultColor;
+        ctx.fillStyle = baseColor;
         
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (isInBounds(newX, newY) && grid[newY][newX]) {
-                const neighbor = grid[newY][newX];
-                if (neighbor.type === 'fire' || 
-                    (neighbor.burning && neighbor.burnDuration > 0)) {
-                    return true;
-                }
-            }
-        }
+        // Adjust opacity based on amount left
+        const opacity = 0.8 * (particle.amount || 1.0);
+        ctx.globalAlpha = Math.max(0.1, opacity);
         
-        return false;
-    },
-    
-    // Spread fire to adjacent flammable materials
-    spreadFire: function(x, y, grid, isInBounds) {
-        const directions = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 },  // down
-            { dx: -1, dy: -1 }, // up-left
-            { dx: 1, dy: -1 },  // up-right
-            { dx: -1, dy: 1 },  // down-left
-            { dx: 1, dy: 1 }    // down-right
-        ];
+        // Draw the main body
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         
-        for (const dir of directions) {
-            const newX = x + dir.dx;
-            const newY = y + dir.dy;
-            
-            if (isInBounds(newX, newY) && grid[newY][newX]) {
-                const neighbor = grid[newY][newX];
-                if (neighbor.flammable && !neighbor.burning && Math.random() < 0.5) {
-                    neighbor.burning = true;
-                    neighbor.burnDuration = neighbor.type === 'oil' ? 120 : 60;
-                }
-            }
-        }
-    },
-    
-    // Create fire particle
-    createFireParticle: function() {
-        return {
-            type: 'fire',
-            color: '#FF4500',
-            temperature: 150,
-            processed: false,
-            burnDuration: 30,
-            flammable: false
-        };
-    },
-    
-    // Create smoke particle
-    createSmokeParticle: function() {
-        return {
-            type: 'smoke',
-            color: '#555555',
-            temperature: 100,
-            processed: false,
-            burnDuration: 80,
-            flammable: false,
-            density: 0.3,
-            isGas: true
-        };
-    },
-    
-    // Custom rendering for oil
-    render: function(ctx, x, y, particle, CELL_SIZE) {
+        // Reset opacity
+        ctx.globalAlpha = 1.0;
+        
+        // Add burning effect if it's on fire
         if (particle.burning) {
-            // Burning oil has a more orange-red color
-            const burnIntensity = Math.min(1, particle.burnDuration / 120);
-            const r = 255;
-            const g = Math.floor(165 * burnIntensity);
-            const b = 0;
-            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        } else {
-            // Normal oil is dark brown with a slight shine
-            ctx.fillStyle = particle.color;
-        }
-        
-        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        
-        // Add shine effect to oil
-        if (!particle.burning) {
-            // Glossy highlight for oil
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-            ctx.beginPath();
-            ctx.arc(
-                x * CELL_SIZE + CELL_SIZE * 0.7, 
-                y * CELL_SIZE + CELL_SIZE * 0.3, 
-                CELL_SIZE * 0.2, 
-                0, 
-                Math.PI * 2
-            );
-            ctx.fill();
-        } else {
-            // Fire effect on burning oil
-            const flameHeight = CELL_SIZE * 0.5;
-            const flameWidth = CELL_SIZE * 0.6;
-            
-            // Create gradient for flame
+            // Flicker effect
+            const flickerHeight = Math.random() * cellSize * 0.3;
             const gradient = ctx.createLinearGradient(
-                x * CELL_SIZE + CELL_SIZE/2, 
-                y * CELL_SIZE, 
-                x * CELL_SIZE + CELL_SIZE/2, 
-                y * CELL_SIZE - flameHeight
+                x * cellSize + cellSize / 2,
+                y * cellSize,
+                x * cellSize + cellSize / 2,
+                y * cellSize - flickerHeight
             );
-            gradient.addColorStop(0, 'rgba(255, 140, 0, 0.8)');
-            gradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
+            
+            gradient.addColorStop(0, 'rgba(255, 153, 0, 0.7)');
+            gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
             
             ctx.fillStyle = gradient;
+            
+            // Draw flame shape
             ctx.beginPath();
-            ctx.moveTo(x * CELL_SIZE + (CELL_SIZE - flameWidth)/2, y * CELL_SIZE);
-            ctx.quadraticCurveTo(
-                x * CELL_SIZE + CELL_SIZE/2, 
-                y * CELL_SIZE - flameHeight * 1.5, 
-                x * CELL_SIZE + (CELL_SIZE + flameWidth)/2, 
-                y * CELL_SIZE
-            );
+            ctx.moveTo(x * cellSize, y * cellSize);
+            ctx.lineTo(x * cellSize + cellSize / 2, y * cellSize - flickerHeight);
+            ctx.lineTo(x * cellSize + cellSize, y * cellSize);
+            ctx.closePath();
             ctx.fill();
         }
-    },
-    
-    // Update particle on creation
-    updateOnCreate: function(particle) {
-        particle.flammable = true;
-        particle.temperature = this.defaultTemperature;
-        return particle;
     }
-}; 
+};
+
+// Make the element available globally
+window.OilElement = OilElement; 
