@@ -4,7 +4,7 @@
 const LavaElement = {
     name: 'lava',
     label: 'Lava',
-    description: 'Extremely hot molten rock that melts through materials',
+    description: 'Extremely hot molten rock that melts through materials except steel',
     category: 'liquid',
     defaultColor: '#FF4500',
     
@@ -100,6 +100,27 @@ const LavaElement = {
         let totalHeat = 0;
         let cellCount = 0;
         
+        // Create wind effect
+        if (Math.random() < 0.02) {
+            // Find an empty cell to add wind to
+            const windDir = { dx: 0, dy: -1 }; // Wind goes up
+            const nx = x + windDir.dx;
+            const ny = y + windDir.dy;
+            
+            if (isInBounds(nx, ny) && !grid[ny][nx]) {
+                grid[ny][nx] = {
+                    type: 'wind',
+                    color: 'rgba(255, 255, 255, 0.1)',
+                    temperature: grid[y][x].temperature * 0.5,
+                    processed: true,
+                    isGas: true,
+                    isLiquid: false,
+                    isPowder: false,
+                    isSolid: false
+                };
+            }
+        }
+        
         for (const dir of neighbors) {
             const nx = x + dir.dx;
             const ny = y + dir.dy;
@@ -168,9 +189,28 @@ const LavaElement = {
                         };
                         break;
                         
+                    case 'stone':
+                        // Stone doesn't melt immediately - needs very high heat
+                        if (grid[y][x].temperature > 1000 && Math.random() < 0.05) {
+                            // Transform stone to lava rather than melting through
+                            grid[ny][nx] = {
+                                type: 'lava',
+                                color: grid[y][x].color,
+                                temperature: grid[y][x].temperature * 0.9,
+                                viscosity: grid[y][x].viscosity,
+                                glowIntensity: 0.8,
+                                processed: true,
+                                isGas: false,
+                                isLiquid: true,
+                                isPowder: false,
+                                isSolid: false
+                            };
+                        }
+                        break;
+                        
                     default:
-                        // Melt through ALL other materials
-                        if (Math.random() < 0.3) { // Increased melting chance
+                        // Melt through ALL other materials except steel
+                        if (Math.random() < 0.3 && grid[ny][nx].type !== 'steel') { // Increased melting chance
                             // Create appropriate effects based on material type
                             const isFlammable = grid[ny][nx].flammable || 
                                 ['wood', 'plant', 'oil', 'fuse'].includes(grid[ny][nx].type);
@@ -206,9 +246,12 @@ const LavaElement = {
                                 grid[ny][nx] = null;
                             }
                             
+                            // Lava doesn't lose itself when melting (different from acid)
+                            // It only loses temperature
+                            
                             // Metals and dense materials cool lava more when they melt
                             const isMetal = ['metal', 'copper'].includes(grid[ny][nx]?.type);
-                            const isDense = ['stone', 'brick', 'glass'].includes(grid[ny][nx]?.type);
+                            const isDense = ['brick', 'glass'].includes(grid[ny][nx]?.type);
                             
                             if (isMetal) {
                                 grid[y][x].temperature -= 20; // Reduced cooling

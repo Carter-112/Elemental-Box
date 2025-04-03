@@ -42,23 +42,24 @@ const AcidElement = {
         grid[y][x].processed = true;
         
         // Acid potency decreases more slowly over time
-        if (grid[y][x].potency !== undefined) {
-            if (grid[y][x].potency <= 0.1) {
-                // Acid becomes too diluted and turns to water
-                grid[y][x] = {
-                    type: 'water',
-                    color: '#4286f4',
-                    temperature: grid[y][x].temperature,
-                    processed: true,
-                    isGas: false,
-                    isLiquid: true,
-                    isPowder: false,
-                    isSolid: false
-                };
-                return;
-            }
-        } else {
+        if (grid[y][x].potency === undefined) {
             grid[y][x].potency = 1.5;
+        }
+        
+        // If acid potency gets too low, convert to water
+        if (grid[y][x].potency <= 0.1) {
+            // Acid becomes too diluted and turns to water
+            grid[y][x] = {
+                type: 'water',
+                color: '#4286f4',
+                temperature: grid[y][x].temperature,
+                processed: true,
+                isGas: false,
+                isLiquid: true,
+                isPowder: false,
+                isSolid: false
+            };
+            return;
         }
         
         // Acid movement - falls with gravity
@@ -128,11 +129,10 @@ const AcidElement = {
             // Acid doesn't corrode steel
             if (grid[ny][nx].type === 'steel') continue;
             
-            // Acid melts through ALL other materials (except water and other acid)
+            // Acid melts through ALL other materials except water, other acid, and steel
             if (grid[ny][nx].type !== 'acid' && grid[ny][nx].type !== 'water') {
-                // ENHANCED: Corrode the material with more aggressive behavior
-                // Always dissolve the material regardless of type
-                const corrosionChance = 0.8; // Much higher chance to corrode
+                // Corrode the material with high chance
+                const corrosionChance = 0.8; // High chance to corrode
                 
                 if (Math.random() < corrosionChance) {
                     // Corrode the material
@@ -164,8 +164,18 @@ const AcidElement = {
                         };
                     }
                     
-                    // Acid dissipates more slowly when it melts materials
-                    grid[y][x].potency -= 0.1; // Reduced potency reduction
+                    // Acid loses potency when it dissolves materials
+                    // Different materials affect potency loss differently
+                    const isMetal = ['metal', 'copper'].includes(grid[ny][nx]?.type);
+                    const isDense = ['stone', 'brick', 'glass'].includes(grid[ny][nx]?.type);
+                    
+                    if (isMetal) {
+                        grid[y][x].potency -= 0.3; // Metals consume more acid
+                    } else if (isDense) {
+                        grid[y][x].potency -= 0.2; // Dense materials consume some acid
+                    } else {
+                        grid[y][x].potency -= 0.1; // Other materials consume less acid
+                    }
                     
                     // Adjust color based on potency
                     const potencyFactor = grid[y][x].potency;

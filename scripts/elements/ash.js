@@ -1,15 +1,15 @@
 // Ash Element
-// Powder that results from burning wood and other flammable materials
+// Powdered remains after burning
 
 const AshElement = {
     name: 'ash',
     label: 'Ash',
-    description: 'Powdery remains left after materials burn',
-    category: 'solid-powder',
-    defaultColor: '#A9A9A9',
+    description: 'Powdered remains from burning materials',
+    category: 'solid powder',
+    defaultColor: '#555555',
     
     // Physical properties
-    density: 0.2, // Very light
+    density: 0.5,
     isGas: false,
     isLiquid: false,
     isPowder: true,
@@ -24,12 +24,11 @@ const AshElement = {
     explosive: false,
     reactive: false,
     corrosive: false,
-    temperature: 40, // Slightly warm from recent burning
+    temperature: 50, // Slightly warm from recent burning
     
     // Called when the element is created
     updateOnCreate: function(particle) {
         particle.processed = false;
-        particle.age = 0;
         return particle;
     },
     
@@ -41,19 +40,12 @@ const AshElement = {
         // Mark as processed
         grid[y][x].processed = true;
         
-        // Age the ash
-        if (grid[y][x].age !== undefined) {
-            grid[y][x].age++;
-            
-            // Gradually cool down
-            if (grid[y][x].temperature > 25) {
-                grid[y][x].temperature -= 0.1;
-            }
-        } else {
-            grid[y][x].age = 0;
+        // Cool down over time
+        if (grid[y][x].temperature > 25) {
+            grid[y][x].temperature -= 0.2;
         }
         
-        // Ash falls with gravity
+        // Ash movement - falls with gravity like other powders
         if (y < grid.length - 1) {
             // Try to move directly down
             if (!grid[y + 1][x]) {
@@ -62,63 +54,25 @@ const AshElement = {
                 return;
             }
             
-            // Try to slide to bottom-left or bottom-right
-            const randomDirection = Math.random() < 0.5;
+            // Try to move diagonally down
+            const direction = Math.random() < 0.5 ? -1 : 1;
+            const nx = x + direction;
             
-            if (randomDirection && x > 0 && !grid[y + 1][x - 1]) {
-                grid[y + 1][x - 1] = grid[y][x];
-                grid[y][x] = null;
-                return;
-            } else if (!randomDirection && x < grid[0].length - 1 && !grid[y + 1][x + 1]) {
-                grid[y + 1][x + 1] = grid[y][x];
+            if (isInBounds(nx, y + 1) && !grid[y + 1][nx]) {
+                grid[y + 1][nx] = grid[y][x];
                 grid[y][x] = null;
                 return;
             }
             
-            // Try the other diagonal if the first one was blocked
-            if (randomDirection && x < grid[0].length - 1 && !grid[y + 1][x + 1]) {
-                grid[y + 1][x + 1] = grid[y][x];
-                grid[y][x] = null;
-                return;
-            } else if (!randomDirection && x > 0 && !grid[y + 1][x - 1]) {
-                grid[y + 1][x - 1] = grid[y][x];
+            // Pile behavior - try the other diagonal
+            if (isInBounds(x - direction, y + 1) && !grid[y + 1][x - direction]) {
+                grid[y + 1][x - direction] = grid[y][x];
                 grid[y][x] = null;
                 return;
             }
         }
         
-        // Ash can become solid ash under pressure
-        if (y > 0 && grid[y-1][x] && 
-            (grid[y-1][x].type === 'ash' || grid[y-1][x].type === 'solid-ash' || 
-             grid[y-1][x].isSolid)) {
-            
-            // Count how many particles are pressing down
-            let pressureCount = 0;
-            for (let checkY = y-1; checkY >= 0 && checkY >= y-5; checkY--) {
-                if (isInBounds(x, checkY) && grid[checkY][x]) {
-                    pressureCount++;
-                } else {
-                    break;
-                }
-            }
-            
-            // If enough pressure, convert to solid ash
-            if (pressureCount >= 4 && Math.random() < 0.01) {
-                grid[y][x] = {
-                    type: 'solid-ash',
-                    color: '#696969', // Darker gray for solid ash
-                    temperature: grid[y][x].temperature,
-                    processed: true,
-                    isGas: false,
-                    isLiquid: false,
-                    isPowder: false,
-                    isSolid: true
-                };
-                return;
-            }
-        }
-        
-        // Ash + Water interaction
+        // Water can wash away ash
         const neighbors = [
             { dx: -1, dy: 0 }, // left
             { dx: 1, dy: 0 },  // right
@@ -132,36 +86,84 @@ const AshElement = {
             
             if (!isInBounds(nx, ny) || !grid[ny][nx]) continue;
             
-            // Ash + Water = Muddy water
-            if (grid[ny][nx].type === 'water') {
-                // Change water color to be muddy
-                grid[ny][nx].color = '#6b5c4d';
+            // Ash mixes with water
+            if (grid[ny][nx].type === 'water' && Math.random() < 0.1) {
+                // Darken the water slightly
+                grid[ny][nx].color = this.blendColors(grid[ny][nx].color || '#4286f4', '#333333', 0.2);
                 
-                // Ash dissolves in water
-                if (Math.random() < 0.3) {
-                    grid[y][x] = null;
-                    return;
-                }
+                // Remove the ash
+                grid[y][x] = null;
+                return;
             }
         }
     },
     
-    // Optional custom rendering function
+    // Custom rendering function
     render: function(ctx, x, y, particle, cellSize) {
-        ctx.fillStyle = particle.color || this.defaultColor;
-        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        // Draw ash with a slight variation in color
+        const variation = Math.random() * 10;
+        const r = Math.floor(85 + variation);
+        const g = Math.floor(85 + variation);
+        const b = Math.floor(85 + variation);
+        const ashColor = particle.color || `rgb(${r}, ${g}, ${b})`;
         
-        // Add some texture to the ash
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillStyle = ashColor;
         
-        // Draw 2-3 small specks
-        const speckCount = 2 + Math.floor(Math.random() * 2);
-        for (let i = 0; i < speckCount; i++) {
-            const speckX = x * cellSize + Math.random() * cellSize;
-            const speckY = y * cellSize + Math.random() * cellSize;
-            const speckSize = Math.max(1, Math.random() * cellSize / 5);
-            ctx.fillRect(speckX, speckY, speckSize, speckSize);
+        // Draw as a small pile of particles
+        const particleCount = 3 + Math.floor(Math.random() * 3);
+        const particleSize = cellSize / 5;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const px = x * cellSize + (cellSize / 2) + (Math.random() * cellSize / 2) - cellSize / 4;
+            const py = y * cellSize + (cellSize / 2) + (Math.random() * cellSize / 2) - cellSize / 4;
+            
+            ctx.beginPath();
+            ctx.arc(px, py, particleSize, 0, Math.PI * 2);
+            ctx.fill();
         }
+    },
+    
+    // Helper function to blend colors
+    blendColors: function(color1, color2, ratio) {
+        // Convert hex to RGB
+        const hex2rgb = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        };
+        
+        // Convert RGB to hex
+        const rgb2hex = (rgb) => {
+            return '#' + ((1 << 24) + (rgb.r << 16) + (rgb.g << 8) + rgb.b).toString(16).slice(1);
+        };
+        
+        // Handle RGB format
+        if (color1.startsWith('rgb')) {
+            const match = color1.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+            if (match) {
+                color1 = rgb2hex({
+                    r: parseInt(match[1]),
+                    g: parseInt(match[2]),
+                    b: parseInt(match[3])
+                });
+            }
+        }
+        
+        const c1 = hex2rgb(color1);
+        const c2 = hex2rgb(color2);
+        
+        if (!c1 || !c2) return color1;
+        
+        const blended = {
+            r: Math.round(c1.r * (1 - ratio) + c2.r * ratio),
+            g: Math.round(c1.g * (1 - ratio) + c2.g * ratio),
+            b: Math.round(c1.b * (1 - ratio) + c2.b * ratio)
+        };
+        
+        return rgb2hex(blended);
     }
 };
 

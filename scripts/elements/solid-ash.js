@@ -1,20 +1,20 @@
 // Solid Ash Element
-// Compacted ash that forms under pressure
+// A solid form of ash that eventually crumbles into powder
 
 const SolidAshElement = {
     name: 'solid-ash',
     label: 'Solid Ash',
-    description: 'Compacted ash that has solidified under pressure',
+    description: 'Solid ash that will eventually crumble into powder',
     category: 'solid',
-    defaultColor: '#696969',
+    defaultColor: '#444444',
     
     // Physical properties
-    density: 2.0,
+    density: 0.6,
     isGas: false,
     isLiquid: false,
     isPowder: false,
     isSolid: true,
-    isStatic: false,
+    isStatic: true,
     isSpawner: false,
     isElectrical: false,
     
@@ -24,12 +24,13 @@ const SolidAshElement = {
     explosive: false,
     reactive: false,
     corrosive: false,
-    temperature: 25, // room temperature by default
+    temperature: 100, // Warm from recent burning
     
     // Called when the element is created
     updateOnCreate: function(particle) {
         particle.processed = false;
-        particle.integrity = 1.0; // Full integrity when created
+        particle.timer = 0;
+        particle.integrity = 100;
         return particle;
     },
     
@@ -41,105 +42,95 @@ const SolidAshElement = {
         // Mark as processed
         grid[y][x].processed = true;
         
-        // Check if solid ash is supported - if not, it can break
-        if (y < grid.length - 1 && !grid[y + 1][x]) {
-            // Check if we have support on sides
-            const hasLeftSupport = x > 0 && grid[y][x - 1] && grid[y][x - 1].isSolid;
-            const hasRightSupport = x < grid[0].length - 1 && grid[y][x + 1] && grid[y][x + 1].isSolid;
-            
-            // If no supports, reduce integrity and potentially break
-            if (!hasLeftSupport && !hasRightSupport) {
-                if (!grid[y][x].integrity) {
-                    grid[y][x].integrity = 1.0;
-                }
-                
-                grid[y][x].integrity -= 0.1;
-                
-                if (grid[y][x].integrity <= 0 || Math.random() < 0.01) {
-                    // Break into regular ash powder
-                    const ashCount = 2 + Math.floor(Math.random() * 3);
-                    
-                    for (let i = 0; i < ashCount; i++) {
-                        const nx = x + Math.floor(Math.random() * 3) - 1;
-                        const ny = y + Math.floor(Math.random() * 2);
-                        
-                        if (isInBounds(nx, ny) && !grid[ny][nx]) {
-                            grid[ny][nx] = {
-                                type: 'ash',
-                                color: '#A9A9A9',
-                                temperature: grid[y][x].temperature,
-                                processed: true,
-                                isGas: false,
-                                isLiquid: false,
-                                isPowder: true,
-                                isSolid: false
-                            };
-                        }
-                    }
-                    
-                    grid[y][x] = null;
-                    return;
-                }
-            }
+        // Initialize properties if not set
+        if (grid[y][x].timer === undefined) {
+            grid[y][x].timer = 0;
         }
         
-        // Solid ash can disintegrate if wet
-        const neighbors = [
-            { dx: -1, dy: 0 }, // left
-            { dx: 1, dy: 0 },  // right
-            { dx: 0, dy: -1 }, // up
-            { dx: 0, dy: 1 }   // down
-        ];
+        // Increment timer
+        grid[y][x].timer++;
         
-        for (const dir of neighbors) {
-            const nx = x + dir.dx;
-            const ny = y + dir.dy;
-            
-            if (!isInBounds(nx, ny) || !grid[ny][nx]) continue;
-            
-            // Solid ash weakens in water
-            if (grid[ny][nx].type === 'water' || grid[ny][nx].type === 'acid') {
-                if (!grid[y][x].integrity) {
-                    grid[y][x].integrity = 1.0;
-                }
-                
-                grid[y][x].integrity -= 0.02;
-                
-                if (grid[y][x].integrity <= 0) {
-                    // Turn back to regular ash
-                    grid[y][x] = {
-                        type: 'ash',
-                        color: '#A9A9A9',
-                        temperature: grid[y][x].temperature,
-                        processed: true,
-                        isGas: false,
-                        isLiquid: false,
-                        isPowder: true,
-                        isSolid: false
-                    };
-                    return;
-                }
-            }
+        // Cool down over time
+        if (grid[y][x].temperature > 25) {
+            grid[y][x].temperature -= 0.5;
+        }
+        
+        // After about 1 second, convert to regular ash (powder)
+        if (grid[y][x].timer >= 30) {
+            grid[y][x] = {
+                type: 'ash',
+                color: '#555555',
+                temperature: grid[y][x].temperature,
+                processed: true,
+                isPowder: true,
+                isLiquid: false,
+                isGas: false,
+                isSolid: false
+            };
+            return;
         }
     },
     
-    // Optional custom rendering function
+    // Custom rendering function
     render: function(ctx, x, y, particle, cellSize) {
-        ctx.fillStyle = particle.color || this.defaultColor;
+        // Base color
+        const baseColor = particle.color || this.defaultColor;
+        ctx.fillStyle = baseColor;
         ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
         
-        // Add some texture to the solid ash
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        // Add texture - charred cracks
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.lineWidth = 1;
         
-        // Draw a few dark spots/cracks
-        const crackCount = 1 + Math.floor(Math.random() * 3);
+        // Create a pattern of cracks
+        const crackSeed = Math.floor(x * 1000 + y); // Deterministic seed based on position
+        const crackCount = 3 + (crackSeed % 3);
+        
+        // Use the seed to create a deterministic random generator
+        const rand = (n) => {
+            return ((crackSeed * (n + 1)) % 100) / 100;
+        };
+        
         for (let i = 0; i < crackCount; i++) {
-            const crackX = x * cellSize + Math.random() * cellSize;
-            const crackY = y * cellSize + Math.random() * cellSize;
-            const crackLength = Math.max(1, Math.random() * cellSize / 3);
-            const crackWidth = Math.max(1, crackLength / 3);
+            const startX = x * cellSize + rand(i * 2) * cellSize;
+            const startY = y * cellSize + rand(i * 2 + 1) * cellSize;
             
-            ctx.fillRect(crackX, crackY, crackLength, crackWidth);
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            
+            // Create a jagged line for the crack
+            let currentX = startX;
+            let currentY = startY;
+            const segments = 2 + Math.floor(rand(i + 10) * 3);
+            
+            for (let j = 0; j < segments; j++) {
+                currentX += (rand(i * j + 5) * cellSize * 0.5) - cellSize * 0.25;
+                currentY += (rand(i * j + 6) * cellSize * 0.5) - cellSize * 0.25;
+                
+                // Keep within cell bounds
+                currentX = Math.max(x * cellSize, Math.min(currentX, (x + 1) * cellSize));
+                currentY = Math.max(y * cellSize, Math.min(currentY, (y + 1) * cellSize));
+                
+                ctx.lineTo(currentX, currentY);
+            }
+            
+            ctx.stroke();
+        }
+        
+        // Add some embers if still hot
+        if (particle.temperature > 70) {
+            const emberCount = Math.floor((particle.temperature - 70) / 10);
+            ctx.fillStyle = `rgba(255, 100, 0, ${(particle.temperature - 70) / 100})`;
+            
+            for (let i = 0; i < emberCount; i++) {
+                const emberX = x * cellSize + rand(i + 50) * cellSize;
+                const emberY = y * cellSize + rand(i + 51) * cellSize;
+                const emberSize = 1 + rand(i + 52);
+                
+                ctx.beginPath();
+                ctx.arc(emberX, emberY, emberSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
     }
 };

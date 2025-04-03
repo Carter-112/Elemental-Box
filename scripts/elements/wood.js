@@ -35,6 +35,7 @@ const WoodElement = {
         particle.burnTimer = 0;
         particle.integrity = 100; // Wood integrity, decreases as it burns
         particle.grainPattern = Math.floor(Math.random() * 4); // Wood grain pattern variation
+        particle.burnPhase = 'none'; // none, heating, red-hot, ash
         return particle;
     },
     
@@ -59,11 +60,15 @@ const WoodElement = {
         if (grid[y][x].grainPattern === undefined) {
             grid[y][x].grainPattern = Math.floor(Math.random() * 4);
         }
+        if (grid[y][x].burnPhase === undefined) {
+            grid[y][x].burnPhase = 'none';
+        }
         
         // Temperature effects
         if (grid[y][x].temperature >= grid[y][x].ignitionTemp && !grid[y][x].burning) {
             grid[y][x].burning = true;
             grid[y][x].burnTimer = 0;
+            grid[y][x].burnPhase = 'heating';
         }
         
         // Handle burning state
@@ -109,101 +114,69 @@ const WoodElement = {
                 if (waterNearby) break;
             }
             
-            // Extinguish if water is nearby
             if (waterNearby) {
+                // Extinguish the fire if water is nearby
                 grid[y][x].burning = false;
                 grid[y][x].temperature = Math.max(25, grid[y][x].temperature - 50);
             } else {
-                // Chance to spread fire to flammable neighbors if no water
-                if (grid[y][x].burnTimer % 10 === 0) {
-                    // Look at neighboring cells
-                    for (let dy = -1; dy <= 1; dy++) {
-                        for (let dx = -1; dx <= 1; dx++) {
-                            if (dx === 0 && dy === 0) continue;
-                            
-                            const nx = x + dx;
-                            const ny = y + dy;
-                            
-                            if (isInBounds(nx, ny) && grid[ny][nx]) {
-                                // If neighbor is flammable, chance to ignite it
-                                if (grid[ny][nx].flammable && !grid[ny][nx].burning && 
-                                    grid[ny][nx].temperature < grid[ny][nx].ignitionTemp) {
-                                    // Heat up neighbor
-                                    grid[ny][nx].temperature += 15;
-                                    
-                                    // Small chance to directly ignite
-                                    if (Math.random() < 0.15) {
-                                        grid[ny][nx].burning = true;
-                                        grid[ny][nx].burnTimer = 0;
-                                    }
-                                }
-                            }
-                        }
-                    }
+                // Progress through burn phases
+                if (grid[y][x].burnPhase === 'heating' && grid[y][x].burnTimer >= 60) {
+                    // After ~2 seconds, transition to red-hot phase
+                    grid[y][x].burnPhase = 'red-hot';
+                    grid[y][x].burnTimer = 0;
+                } else if (grid[y][x].burnPhase === 'red-hot' && grid[y][x].burnTimer >= 60) {
+                    // After red-hot phase, turn to solid ash
+                    grid[y][x] = {
+                        type: 'solid-ash',
+                        color: '#444444',
+                        temperature: grid[y][x].temperature * 0.8,
+                        processed: true,
+                        isPowder: false,
+                        isLiquid: false,
+                        isGas: false,
+                        isSolid: true,
+                        isStatic: true,
+                        burnPhase: 'solid-ash',
+                        burnTimer: 0
+                    };
+                    return;
+                }
                 
-                    // Generate smoke while burning
-                    if (isInBounds(x, y - 1) && !grid[y - 1][x] && Math.random() < 0.3) {
-                        grid[y - 1][x] = {
-                            type: 'smoke',
-                            color: '#777777',
-                            temperature: grid[y][x].temperature * 0.7,
-                            processed: true,
-                            isGas: true,
-                            isLiquid: false,
-                            isPowder: false,
-                            isSolid: false,
-                            lifetime: 100 + Math.floor(Math.random() * 100),
-                            velocity: {
-                                x: (Math.random() * 0.4) - 0.2,
-                                y: -0.5 - (Math.random() * 0.3)
-                            }
-                        };
+                // Fire can spread to nearby flammable materials
+                if (Math.random() < 0.1) {
+                    const spreadDirections = [
+                        { dx: -1, dy: 0 }, { dx: 1, dy: 0 },
+                        { dx: 0, dy: -1 }, { dx: 0, dy: 1 }
+                    ];
+                    
+                    const randDir = spreadDirections[Math.floor(Math.random() * spreadDirections.length)];
+                    const nx = x + randDir.dx;
+                    const ny = y + randDir.dy;
+                    
+                    if (isInBounds(nx, ny) && grid[ny][nx] && grid[ny][nx].flammable && !grid[ny][nx].burning) {
+                        grid[ny][nx].temperature += 20;
                     }
                 }
-            }
-            
-            // Wood burns down to ash
-            if (grid[y][x].integrity <= 0) {
-                // Turn into ash
-                grid[y][x] = {
-                    type: 'ash',
-                    color: '#555555',
-                    temperature: Math.min(grid[y][x].temperature, 200),
-                    processed: true,
-                    isPowder: true,
-                    isLiquid: false,
-                    isGas: false,
-                    isSolid: false
-                };
-                return;
-            }
-        } else {
-            // Slowly cool down if not burning
-            if (grid[y][x].temperature > 25) {
-                grid[y][x].temperature -= 0.5;
-            }
-            
-            // Heat conduction from surroundings
-            let totalTemp = grid[y][x].temperature;
-            let count = 1;
-            
-            for (let dy = -1; dy <= 1; dy++) {
-                for (let dx = -1; dx <= 1; dx++) {
-                    if (dx === 0 && dy === 0) continue;
-                    
-                    const nx = x + dx;
-                    const ny = y + dy;
-                    
-                    if (isInBounds(nx, ny) && grid[ny][nx]) {
-                        totalTemp += grid[ny][nx].temperature;
-                        count++;
-                    }
+                
+                // Generate smoke while burning
+                if (isInBounds(x, y - 1) && !grid[y - 1][x] && Math.random() < 0.3) {
+                    grid[y - 1][x] = {
+                        type: 'smoke',
+                        color: '#777777',
+                        temperature: grid[y][x].temperature * 0.7,
+                        processed: true,
+                        isGas: true,
+                        isLiquid: false,
+                        isPowder: false,
+                        isSolid: false,
+                        lifetime: 100 + Math.floor(Math.random() * 100),
+                        velocity: {
+                            x: (Math.random() * 0.4) - 0.2,
+                            y: -0.5 - (Math.random() * 0.3)
+                        }
+                    };
                 }
             }
-            
-            // Update temperature based on surroundings (wood is a poor heat conductor)
-            const avgTemp = totalTemp / count;
-            grid[y][x].temperature = grid[y][x].temperature * 0.9 + avgTemp * 0.1;
         }
     },
     
@@ -212,10 +185,14 @@ const WoodElement = {
         // Base wood color, adjusted by burning/integrity
         let baseColor = particle.color || this.defaultColor;
         
-        // Adjust color based on integrity (darkens as it burns)
-        if (particle.integrity < 100) {
-            const burnRatio = (100 - particle.integrity) / 100;
+        // Adjust color based on burn phase
+        if (particle.burnPhase === 'heating') {
+            // Gradually darken during heating phase
+            const burnRatio = Math.min(1, particle.burnTimer / 60);
             baseColor = this.blendColors(baseColor, '#000000', burnRatio * 0.7);
+        } else if (particle.burnPhase === 'red-hot') {
+            // Red hot glow
+            baseColor = this.blendColors('#8B4513', '#FF3300', Math.min(1, particle.burnTimer / 30));
         }
         
         // Draw the wood
@@ -227,158 +204,101 @@ const WoodElement = {
             cellSize
         );
         
-        // Add wood grain texture
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        
-        // Different grain patterns
-        switch (particle.grainPattern % 4) {
-            case 0: // Vertical grain
-                const grainWidth = cellSize * 0.1;
-                for (let i = 0; i < 3; i++) {
-                    const grainX = x * cellSize + cellSize * 0.2 + i * grainWidth * 2;
-                    ctx.fillRect(
-                        grainX,
-                        y * cellSize,
-                        grainWidth,
-                        cellSize
-                    );
-                }
-                break;
-                
-            case 1: // Horizontal grain
-                const hgrainHeight = cellSize * 0.1;
-                for (let i = 0; i < 3; i++) {
-                    const grainY = y * cellSize + cellSize * 0.2 + i * hgrainHeight * 2;
-                    ctx.fillRect(
-                        x * cellSize,
-                        grainY,
-                        cellSize,
-                        hgrainHeight
-                    );
-                }
-                break;
-                
-            case 2: // Ring pattern
-                const centerX = x * cellSize + cellSize / 2;
-                const centerY = y * cellSize + cellSize / 2;
-                const ringCount = 2 + Math.floor(Math.random() * 2);
-                
-                for (let i = 0; i < ringCount; i++) {
-                    const ringRadius = cellSize * (0.2 + i * 0.15);
+        // Add wood grain texture (only if not in red-hot phase)
+        if (particle.burnPhase !== 'red-hot') {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            
+            // Different grain patterns
+            switch (particle.grainPattern % 4) {
+                case 0: // Vertical grain
+                    for (let i = 0; i < 3; i++) {
+                        const grainX = x * cellSize + (cellSize / 4) * (i + 1);
+                        ctx.fillRect(
+                            grainX - 1, 
+                            y * cellSize, 
+                            1, 
+                            cellSize
+                        );
+                    }
+                    break;
+                    
+                case 1: // Horizontal grain
+                    for (let i = 0; i < 3; i++) {
+                        const grainY = y * cellSize + (cellSize / 4) * (i + 1);
+                        ctx.fillRect(
+                            x * cellSize, 
+                            grainY - 1, 
+                            cellSize, 
+                            1
+                        );
+                    }
+                    break;
+                    
+                case 2: // Diagonal grain (\)
                     ctx.beginPath();
-                    ctx.arc(
-                        centerX,
-                        centerY,
-                        ringRadius,
-                        0,
-                        Math.PI * 2
-                    );
+                    for (let i = 0; i < 3; i++) {
+                        const offset = (cellSize / 4) * (i + 1);
+                        ctx.moveTo(x * cellSize, y * cellSize + offset);
+                        ctx.lineTo(x * cellSize + offset, y * cellSize);
+                        
+                        ctx.moveTo(x * cellSize + offset, y * cellSize + cellSize);
+                        ctx.lineTo(x * cellSize + cellSize, y * cellSize + offset);
+                    }
                     ctx.stroke();
-                }
-                break;
-                
-            case 3: // Knot pattern
-                const knotX = x * cellSize + cellSize * (0.3 + Math.random() * 0.4);
-                const knotY = y * cellSize + cellSize * (0.3 + Math.random() * 0.4);
-                const knotSize = cellSize * 0.15;
-                
-                // Dark knot center
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-                ctx.beginPath();
-                ctx.arc(
-                    knotX,
-                    knotY,
-                    knotSize,
-                    0,
-                    Math.PI * 2
-                );
-                ctx.fill();
-                
-                // Knot rings
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-                for (let i = 1; i <= 2; i++) {
+                    break;
+                    
+                case 3: // Diagonal grain (/)
                     ctx.beginPath();
-                    ctx.arc(
-                        knotX,
-                        knotY,
-                        knotSize + i * knotSize * 0.7,
-                        0,
-                        Math.PI * 2
-                    );
+                    for (let i = 0; i < 3; i++) {
+                        const offset = (cellSize / 4) * (i + 1);
+                        ctx.moveTo(x * cellSize, y * cellSize + cellSize - offset);
+                        ctx.lineTo(x * cellSize + offset, y * cellSize + cellSize);
+                        
+                        ctx.moveTo(x * cellSize + offset, y * cellSize);
+                        ctx.lineTo(x * cellSize + cellSize, y * cellSize + offset);
+                    }
                     ctx.stroke();
-                }
-                break;
+                    break;
+            }
         }
         
-        // If burning, add fire effect
-        if (particle.burning) {
-            // Flicker intensity based on burn timer
-            const flickerIntensity = 0.6 + Math.sin(particle.burnTimer * 0.2) * 0.3;
-            
-            // Fire gradient
-            const fireGradient = ctx.createRadialGradient(
-                x * cellSize + cellSize / 2,
-                y * cellSize + cellSize / 2,
+        // Add glowing ember effect for red-hot phase
+        if (particle.burnPhase === 'red-hot') {
+            // Add a glow effect
+            const glowSize = cellSize * 1.2;
+            const gradient = ctx.createRadialGradient(
+                x * cellSize + cellSize / 2, 
+                y * cellSize + cellSize / 2, 
                 0,
-                x * cellSize + cellSize / 2,
-                y * cellSize + cellSize / 2,
-                cellSize * 0.8
+                x * cellSize + cellSize / 2, 
+                y * cellSize + cellSize / 2, 
+                glowSize
             );
             
-            fireGradient.addColorStop(0, `rgba(255, 150, 50, ${flickerIntensity * 0.8})`);
-            fireGradient.addColorStop(0.6, `rgba(200, 50, 0, ${flickerIntensity * 0.6})`);
-            fireGradient.addColorStop(1, 'rgba(100, 0, 0, 0)');
+            gradient.addColorStop(0, 'rgba(255, 100, 0, 0.6)');
+            gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
             
-            ctx.fillStyle = fireGradient;
+            ctx.fillStyle = gradient;
             ctx.fillRect(
-                x * cellSize - cellSize * 0.25,
-                y * cellSize - cellSize * 0.25,
-                cellSize * 1.5,
-                cellSize * 1.5
+                x * cellSize - glowSize / 2, 
+                y * cellSize - glowSize / 2, 
+                cellSize + glowSize, 
+                cellSize + glowSize
             );
             
-            // Add fire embers occasionally
+            // Add some embers/sparks
             if (Math.random() < 0.3) {
-                ctx.fillStyle = 'rgba(255, 200, 0, 0.8)';
-                const emberX = x * cellSize + Math.random() * cellSize;
-                const emberY = y * cellSize + Math.random() * cellSize;
-                const emberSize = cellSize * 0.05;
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.7)';
+                const sparkCount = 2 + Math.floor(Math.random() * 3);
                 
-                ctx.beginPath();
-                ctx.arc(emberX, emberY, emberSize, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            
-            // Show cracks in the wood as it burns
-            if (particle.integrity < 70) {
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-                ctx.lineWidth = 1;
-                
-                const crackCount = Math.floor((100 - particle.integrity) / 20);
-                for (let i = 0; i < crackCount; i++) {
-                    const startX = x * cellSize + Math.random() * cellSize;
-                    const startY = y * cellSize + Math.random() * cellSize;
+                for (let i = 0; i < sparkCount; i++) {
+                    const sparkX = x * cellSize + Math.random() * cellSize;
+                    const sparkY = y * cellSize + Math.random() * cellSize;
+                    const sparkSize = 1 + Math.random() * 2;
                     
                     ctx.beginPath();
-                    ctx.moveTo(startX, startY);
-                    
-                    // Create a jagged line for the crack
-                    let currentX = startX;
-                    let currentY = startY;
-                    const segments = 2 + Math.floor(Math.random() * 3);
-                    
-                    for (let j = 0; j < segments; j++) {
-                        currentX += (Math.random() * cellSize * 0.4) - cellSize * 0.2;
-                        currentY += (Math.random() * cellSize * 0.4) - cellSize * 0.2;
-                        
-                        // Keep within cell bounds
-                        currentX = Math.max(x * cellSize, Math.min(currentX, (x + 1) * cellSize));
-                        currentY = Math.max(y * cellSize, Math.min(currentY, (y + 1) * cellSize));
-                        
-                        ctx.lineTo(currentX, currentY);
-                    }
-                    
-                    ctx.stroke();
+                    ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
+                    ctx.fill();
                 }
             }
         }
