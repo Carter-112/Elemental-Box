@@ -23,6 +23,16 @@ The contact form uses a simple mailto: approach:
 - User has to manually send the email after reviewing it
 - Limited formatting options for the email content
 
+## Mobile Responsiveness
+
+Both the Privacy Policy and Contact pages are fully responsive and work on all devices:
+
+- Adapts to both portrait and landscape orientations
+- Optimized for various screen sizes (phones, tablets, desktops)
+- Improved form layout in landscape mode on mobile devices
+- Touch-friendly button sizes and spacing
+- Properly sized text for readability on small screens
+
 ## Deployment
 
 Simply deploy the static files to any web hosting service like Netlify, GitHub Pages, Vercel, etc.
@@ -31,26 +41,4 @@ No environment variables or special configuration is needed for the contact form
 
 ## Local Development
 
-To test locally:
-
-1. Install dependencies:
-   ```
-   npm install
-   ```
-
-2. Install Netlify CLI globally:
-   ```
-   npm install netlify-cli -g
-   ```
-
-3. Create a `.env` file with your SendGrid API key:
-   ```
-   SENDGRID_API_KEY=your_api_key_here
-   ```
-
-4. Start the development server:
-   ```
-   netlify dev
-   ```
-
-5. Open http://localhost:8888 in your browser 
+To test locally, you can use any simple HTTP server. 

@@ -32,6 +32,7 @@
         .header h1 {
             margin: 0;
             color: #00a8ff;
+            font-size: 24px;
         }
         
         .nav {
@@ -55,9 +56,16 @@
             padding: 40px 20px;
         }
         
+        h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #00a8ff;
+        }
+        
         h2 {
             color: #00a8ff;
             margin-top: 30px;
+            font-size: 22px;
         }
         
         p {
@@ -97,6 +105,7 @@
             background-color: #ddd;
         }
         
+        body.light-mode h1,
         body.light-mode h2 {
             color: #0066cc;
         }
@@ -104,6 +113,96 @@
         body.light-mode .footer {
             border-top: 1px solid #ccc;
             color: #666;
+        }
+        
+        /* Mobile responsive styles */
+        @media (max-width: 767px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px;
+                text-align: center;
+            }
+            
+            .header h1 {
+                font-size: 22px;
+            }
+            
+            .nav {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .nav a {
+                padding: 8px 12px; /* Larger touch target */
+            }
+            
+            .content {
+                padding: 20px 15px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            h2 {
+                font-size: 20px;
+            }
+            
+            p {
+                font-size: 16px;
+            }
+        }
+        
+        /* Small mobile devices */
+        @media (max-width: 400px) {
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .nav {
+                gap: 5px;
+            }
+            
+            .nav a {
+                font-size: 14px;
+                padding: 6px 8px;
+            }
+            
+            h1 {
+                font-size: 22px;
+            }
+            
+            h2 {
+                font-size: 18px;
+            }
+        }
+        
+        /* Landscape orientation for mobile */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .header {
+                padding: 10px;
+            }
+            
+            .content {
+                padding: 15px;
+                max-width: 600px;
+                margin: 0 auto;
+            }
+            
+            h1, h2 {
+                margin-top: 10px;
+                margin-bottom: 10px;
+            }
+            
+            p {
+                margin-bottom: 10px;
+            }
+            
+            .footer {
+                margin-top: 20px;
+                padding: 10px;
+            }
         }
     </style>
 </head>
@@ -165,5 +264,15 @@
             <p>&copy; 2024 ElementalBox. All rights reserved.</p>
         </div>
     </div>
+    
+    <script>
+        // Check if dark/light mode toggle exists in local storage
+        document.addEventListener('DOMContentLoaded', function() {
+            const isDarkMode = localStorage.getItem('darkMode') !== 'false';
+            if (!isDarkMode) {
+                document.body.classList.add('light-mode');
+            }
+        });
+    </script>
 </body>
 </html> 
