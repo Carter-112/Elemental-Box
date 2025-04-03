@@ -1091,10 +1091,62 @@
         }
         
         /* Enhanced notification styling */
+        
+        /* Add navigation links styles */
+        .header-nav {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            display: flex;
+            gap: 15px;
+        }
+        
+        .nav-link {
+            color: #e0e0e0;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background-color: rgba(0, 0, 0, 0.5);
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-link:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        
+        .light-mode .nav-link {
+            color: #333;
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .light-mode .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+        
+        @media (max-width: 768px) {
+            .header-nav {
+                top: 5px;
+                left: 5px;
+                gap: 10px;
+            }
+            
+            .nav-link {
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
     <div id="app-container">
+        <!-- Add navigation links -->
+        <div class="header-nav">
+            <a href="privacy-policy.html" class="nav-link">Privacy Policy</a>
+            <a href="contact.html" class="nav-link">Contact</a>
+        </div>
+        
         <div id="header">
             <h1>ElementalBox</h1>
         </div>
