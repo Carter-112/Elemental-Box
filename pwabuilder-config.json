@@ -1,0 +1,10 @@
+{
+  "android": {
+    "targetSdkVersion": 34,
+    "compileSdkVersion": 34,
+    "minSdkVersion": 24,
+    "manifestPlaceholders": {
+      "applicationId": "com.elementalbox.app"
+    }
+  }
+} 

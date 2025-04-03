@@ -42,3 +42,9 @@ No environment variables or special configuration is needed for the contact form
 ## Local Development
 
 To test locally, you can use any simple HTTP server. 
+
+## PWA Builder Android Package
+
+When building an Android app using PWA Builder, please refer to the `PWA-BUILDER-USAGE.md` file for instructions on using the `pwabuilder-config.json` configuration file. This configuration ensures compatibility with the PWA Builder build environment by setting appropriate Android SDK versions.
+
+If you encounter a 500 internal server error during the build process, follow the solutions outlined in that document. 
