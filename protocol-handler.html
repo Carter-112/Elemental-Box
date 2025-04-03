@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElementalBox - Protocol Handler Demo</title>
+    <link rel="stylesheet" href="/styles.css">
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#00a8ff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ElementalBox">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+        
+        h1 {
+            color: #00a8ff;
+            margin-bottom: 1rem;
+        }
+        
+        .demo-section {
+            background-color: #1e1e1e;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+        
+        .demo-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+        
+        .demo-description {
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+        
+        .protocol-link {
+            display: inline-block;
+            background-color: #00a8ff;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-right: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .protocol-link:hover {
+            background-color: #0088cc;
+        }
+        
+        .code-block {
+            background-color: #2e2e2e;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+        
+        .note {
+            background-color: rgba(255, 193, 7, 0.2);
+            border-left: 4px solid #ffc107;
+            padding: 1rem;
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ElementalBox Protocol Handler Demo</h1>
+        
+        <div class="demo-section">
+            <h2 class="demo-title">What is a Protocol Handler?</h2>
+            <p class="demo-description">
+                A protocol handler allows ElementalBox to register itself as an application that can handle custom URL schemes.
+                When you click a link that starts with <code>web+elementalbox://</code>, your browser will open ElementalBox to handle it.
+                This enables deep linking into specific simulations or experiments.
+            </p>
+        </div>
+        
+        <div class="demo-section">
+            <h2 class="demo-title">Try it out</h2>
+            <p class="demo-description">
+                Click on the links below to test the custom protocol handler. The first time you click, your browser will ask if you want
+                to allow ElementalBox to handle these links.
+            </p>
+            
+            <a href="web+elementalbox://fire-simulation" class="protocol-link">Fire Simulation</a>
+            <a href="web+elementalbox://water-flow" class="protocol-link">Water Flow</a>
+            <a href="web+elementalbox://chemical-reaction" class="protocol-link">Chemical Reaction</a>
+            
+            <div class="code-block">
+                &lt;a href="web+elementalbox://fire-simulation"&gt;Fire Simulation&lt;/a&gt;
+            </div>
+            
+            <div class="note">
+                <p><strong>Note:</strong> For the protocol handler to work, you must first install ElementalBox as a PWA, and your browser must support custom protocol handlers.</p>
+            </div>
+        </div>
+        
+        <div class="demo-section">
+            <h2 class="demo-title">Creating Your Own Protocol Links</h2>
+            <p class="demo-description">
+                You can create your own links using the following format:
+            </p>
+            
+            <div class="code-block">
+                web+elementalbox://[experiment-id]?param1=value1&param2=value2
+            </div>
+            
+            <p class="demo-description">
+                When someone clicks this link, ElementalBox will open and receive the parameters, allowing 
+                you to share specific simulations or configurations.
+            </p>
+        </div>
+        
+        <div class="demo-section">
+            <h2 class="demo-title">Implementation Details</h2>
+            <p class="demo-description">
+                The protocol handler is registered in our <code>manifest.json</code> file:
+            </p>
+            
+            <div class="code-block">
+                "protocol_handler": {<br>
+                &nbsp;&nbsp;"protocol": "web+elementalbox",<br>
+                &nbsp;&nbsp;"url": "/index.html?experiment=%s"<br>
+                }
+            </div>
+            
+            <p class="demo-description">
+                When a user clicks a link with our protocol, the %s placeholder in the URL is replaced with the contents after the protocol.
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Capture all protocol link clicks for demonstration
+            document.querySelectorAll('.protocol-link').forEach(link => {
+                link.addEventListener('click', function(event) {
+                    // Prevent default only if the protocol handler isn't supported
+                    if (!navigator.registerProtocolHandler) {
+                        event.preventDefault();
+                        alert('Your browser does not support protocol handlers. To test this feature, try using Chrome, Edge, or another browser that supports Progressive Web Apps.');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

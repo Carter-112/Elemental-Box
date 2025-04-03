@@ -73,7 +73,7 @@
   },
   
   "protocol_handler": {
-    "protocol": "elementalbox",
+    "protocol": "web+elementalbox",
     "url": "/index.html?experiment=%s"
   },
   
