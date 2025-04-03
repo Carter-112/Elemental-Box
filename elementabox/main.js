@@ -2692,6 +2692,105 @@ function updateOverrideButtonState() {
     }
 }
 
+// Add this right after your document.addEventListener('DOMContentLoaded', function() { line
+
+// Get ad container dimensions for boundary checks
+let topAdContainer = document.getElementById('top-ad-container');
+let sideAdContainer = document.getElementById('side-ad-container');
+let adBoundaries = {
+    topAd: {
+        active: true,
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0
+    },
+    sideAd: {
+        active: true,
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0
+    }
+};
+
+// Function to update ad boundaries
+function updateAdBoundaries() {
+    const canvas = document.getElementById('sandbox');
+    
+    if (topAdContainer) {
+        const topAdRect = topAdContainer.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        
+        // Calculate position relative to canvas
+        adBoundaries.topAd = {
+            active: true,
+            x: Math.max(0, topAdRect.left - canvasRect.left),
+            y: Math.max(0, topAdRect.top - canvasRect.top),
+            width: topAdRect.width,
+            height: topAdRect.height
+        };
+    }
+    
+    if (sideAdContainer) {
+        const sideAdRect = sideAdContainer.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        
+        // Calculate position relative to canvas
+        adBoundaries.sideAd = {
+            active: true,
+            x: Math.max(0, sideAdRect.left - canvasRect.left),
+            y: Math.max(0, sideAdRect.top - canvasRect.top),
+            width: sideAdRect.width,
+            height: sideAdRect.height
+        };
+    }
+}
+
+// Call once at startup and then on window resize
+window.addEventListener('resize', updateAdBoundaries);
+setTimeout(updateAdBoundaries, 1000); // Initial delay to ensure elements are positioned
+
+// Make isInAdArea globally accessible
+window.isInAdArea = function(x, y) {
+    // Scale grid coordinates to canvas pixels
+    const pixelX = x * CELL_SIZE;
+    const pixelY = y * CELL_SIZE;
+    
+    // Check if position is in top ad area
+    if (adBoundaries.topAd.active && 
+        pixelX >= adBoundaries.topAd.x && 
+        pixelX <= adBoundaries.topAd.x + adBoundaries.topAd.width && 
+        pixelY >= adBoundaries.topAd.y && 
+        pixelY <= adBoundaries.topAd.y + adBoundaries.topAd.height) {
+        return true;
+    }
+    
+    // Check if position is in side ad area
+    if (adBoundaries.sideAd.active && 
+        pixelX >= adBoundaries.sideAd.x && 
+        pixelX <= adBoundaries.sideAd.x + adBoundaries.sideAd.width && 
+        pixelY >= adBoundaries.sideAd.y && 
+        pixelY <= adBoundaries.sideAd.y + adBoundaries.sideAd.height) {
+        return true;
+    }
+    
+    return false;
+}
+
+// Modify isInBounds to also check ad boundaries
+const originalIsInBounds = isInBounds;
+window.isInBounds = function(x, y) {
+    if (!originalIsInBounds(x, y)) return false;
+    
+    // Also check if this position is in an ad area
+    if (window.isInAdArea(x, y)) {
+        return false; // Treat ad areas as out of bounds
+    }
+    
+    return true;
+}
+
 
 
 

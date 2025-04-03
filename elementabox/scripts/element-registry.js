@@ -332,6 +332,15 @@ class ElementRegistry {
         particle.processed = true;
     }
     
+    // Add this method to check if particles can move to a position (ad boundaries)
+    canMoveToPosition(x, y) {
+        // Check if position is in ad area using the global isInAdArea function if available
+        if (window.isInAdArea && typeof window.isInAdArea === 'function') {
+            return !window.isInAdArea(x, y);
+        }
+        return true;
+    }
+    
     // Apply environmental effects like wind, heat
     applyEnvironmentalEffects(isInBounds, getRandomCell) {
         // Apply active environmental tools

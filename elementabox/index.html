@@ -20,15 +20,192 @@
             color: #e0e0e0;
         }
         
+        /* Ad container styles */
+        #top-ad-container {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50%; /* Half of the screen width */
+            height: 100px;
+            background-color: rgba(255, 255, 255, 0.1);
+            z-index: 10;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #side-ad-container {
+            position: fixed; /* Changed from absolute to fixed */
+            top: 100px; /* Position below top ad */
+            right: 0;
+            width: 100px; /* Changed from 90px to 100px */
+            height: 500px;
+            background-color: rgba(255, 255, 255, 0.1);
+            z-index: 20;
+            overflow: visible; /* Ensure ad content isn't cut off */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .ad-label {
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        /* Mobile responsive adjustments */
+        @media (max-width: 768px) {
+            #app-container {
+                flex-direction: column;
+            }
+            
+            #content-container {
+                flex-direction: column;
+            }
+            
+            #toolbar {
+                width: 100%;
+                height: auto;
+                max-height: 30vh;
+                overflow-y: auto;
+                border-right: none;
+                border-bottom: 1px solid #333;
+            }
+            
+            #canvas-container {
+                height: 70vh;
+            }
+            
+            #top-ad-container {
+                width: 100%;
+                height: 80px;
+                z-index: 20;
+            }
+            
+            #side-ad-container {
+                top: 80px;
+                width: 100%;
+                height: 160px;
+                z-index: 20;
+            }
+            
+            .mobile-ad-content {
+                writing-mode: horizontal-tb !important;
+                text-orientation: initial !important;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            #top-ad-container {
+                height: 70px;
+            }
+            
+            #side-ad-container {
+                top: 70px;
+                height: 120px;
+            }
+        }
+        
+        /* Landscape orientation adjustments */
+        @media (max-width: 768px) and (orientation: landscape) {
+            #content-container {
+                flex-direction: row;
+            }
+            
+            #toolbar {
+                width: 200px;
+                height: 100%;
+                max-height: none;
+            }
+            
+            #canvas-container {
+                flex: 1;
+                height: 100%;
+                width: calc(100% - 200px - 100px); /* Toolbar - sideAd */
+            }
+            
+            #top-ad-container {
+                width: 50%;
+                right: 0;
+            }
+            
+            #side-ad-container {
+                width: 100px;
+                height: calc(100vh - 100px);
+                top: 100px;
+                right: 0;
+            }
+            
+            #side-ad-container .mobile-ad-content {
+                writing-mode: vertical-lr !important;
+            }
+        }
+        
+        /* Portrait orientation adjustments */
+        @media (max-width: 768px) and (orientation: portrait) {
+            /* Portrait mode (vertical) */
+            #top-ad-container {
+                position: relative;
+                order: 2;
+                top: auto;
+                right: auto;
+            }
+            
+            #side-ad-container {
+                position: relative;
+                order: 3;
+                top: auto;
+                right: auto;
+            }
+            
+            #canvas-container {
+                order: 1;
+            }
+        }
+        
+        /* Light mode ad styles */
+        body.light-mode #top-ad-container,
+        body.light-mode #side-ad-container {
+            background-color: #f0f0f0;
+            border-color: #ddd;
+        }
+        
+        body.light-mode .ad-label {
+            color: #999;
+        }
+        
         #app-container {
             display: flex;
+            flex-direction: column;
             height: 100vh;
             width: 100vw;
+            position: relative;
+        }
+        
+        #header {
+            background-color: #011627;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            z-index: 20;
+        }
+        
+        #content-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
         }
         
         #toolbar {
             width: 280px;
-            height: 100vh;
+            height: 100%;
             overflow-y: auto;
             background-color: #1e1e1e;
             padding: 10px;
@@ -36,12 +213,20 @@
             flex-direction: column;
             z-index: 10;
             border-right: 1px solid #333;
+            position: relative;
+            flex-shrink: 0;
         }
         
         #canvas-container {
             flex: 1;
             position: relative;
             overflow: hidden;
+        }
+        
+        #canvas {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
         }
         
         #sandbox {
@@ -726,78 +911,202 @@
         .wind-direction.down { transform: rotate(90deg); }
         .wind-direction.left { transform: rotate(180deg); }
         .wind-direction.up { transform: rotate(270deg); }
+        
+        /* Ad connection styles */
+        .ad-container-wrapper {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* Better ad positioning for all screen sizes */
+        @media (min-width: 769px) {
+            /* Desktop layout */
+            #top-ad-container {
+                position: absolute;
+                top: 0;
+                left: calc(280px + 50%); /* Toolbar width (280px) + half of remaining width */
+                width: calc(50% - 140px); /* Half of the width minus half of toolbar */
+                height: 100px;
+                border-bottom-left-radius: 4px;
+                z-index: 20;
+            }
+            
+            #side-ad-container {
+                position: fixed;
+                top: 100px; /* Connect directly below the top ad */
+                right: 0;
+                width: 100px;
+                height: calc(100vh - 100px);
+                border-top-left-radius: 4px;
+                border-bottom-left-radius: 4px;
+                z-index: 20;
+                overflow: visible;
+            }
+            
+            /* Adjust canvas for desktop to account for side ad */
+            #canvas-container {
+                margin-right: 100px; /* Make room for side ad */
+                position: relative;
+            }
+        }
+        
+        /* Medium screen sizes (tablets) */
+        @media (min-width: 481px) and (max-width: 768px) {
+            /* Tablet layout */
+            #top-ad-container {
+                width: 100%;
+                height: 80px;
+                right: 0;
+            }
+            
+            #side-ad-container {
+                width: 100%;
+                height: 160px;
+                top: 80px;
+                flex-direction: row;
+            }
+            
+            .mobile-ad-content {
+                max-width: 100%;
+                height: auto;
+                writing-mode: horizontal-tb !important;
+                text-orientation: initial !important;
+            }
+            
+            /* Adjust canvas for tablets */
+            #canvas-container {
+                height: calc(100vh - 300px); /* Adjust for top bar and ads */
+            }
+        }
+        
+        /* Small screen sizes (phones) */
+        @media (max-width: 480px) {
+            #top-ad-container {
+                height: 70px;
+                width: 100%;
+                right: 0;
+            }
+            
+            #side-ad-container {
+                height: 150px; /* Increased height for mobile */
+                width: 100%;
+                top: 70px;
+                flex-direction: row;
+            }
+            
+            .mobile-ad-content {
+                transform: rotate(0); /* Ensure proper orientation */
+                writing-mode: horizontal-tb !important;
+                width: 100% !important;
+                height: 100% !important;
+            }
+            
+            /* Adjust canvas container for mobile */
+            #canvas-container {
+                height: calc(100vh - 350px); /* Adjust for toolbar and larger ads */
+            }
+        }
     </style>
 </head>
 <body>
     <div id="app-container">
-        <div id="toolbar">
-            <div class="top-controls">
-                <button id="pause-btn" class="action-btn" title="Pause/Resume simulation">Pause</button>
-                <button id="export-btn" class="action-btn" title="Export simulation to JSON file">Export</button>
-                <button id="import-btn" class="action-btn" title="Import simulation from JSON file">Import</button>
-                <button id="screenshot-btn" class="action-btn" title="Save canvas as PNG image">Screenshot</button>
-                <button id="reset-btn" class="action-btn warning" title="Clear the sandbox">Reset</button>
-                <input type="file" id="import-file" accept=".json" style="display:none">
-            </div>
-            
-            <!-- Added Status Bar -->
-            <div id="status-bar">
-                <span id="fps-counter">FPS: --</span>
-                <span id="particle-count">Particles: 0</span>
-            </div>
-            
-            <div class="brush-controls">
-                <div class="brush-size-container">
-                    <label for="brush-size">Brush:</label>
-                    <input type="range" id="brush-size" name="brush-size" min="1" max="20" value="6" style="flex-grow: 1; margin: 0 10px;">
-                    <span id="brush-size-value">6</span>
-                </div>
-                <div id="override-container">
-                    <button id="override-btn" class="action-btn">Override Elements</button>
-                </div>
-                <div id="no-boundaries-container">
-                    <button id="no-boundaries-btn" class="action-btn">Remove Floor/Ceiling</button>
-                </div>
-            </div>
-            
-            <!-- Add this right before the element-buttons div -->
-            <div class="tools-container">
-                <h3 class="category-heading">Environmental Tools</h3>
-                <div id="environmental-tools" class="environmental-tools">
-                    <!-- Wind tool -->
-                    <button id="wind-tool" class="env-tool-button" data-tool="wind" title="Wind - Push particles in direction of mouse movement">
-                        <div class="tool-icon">🌬️</div>
-                        <div class="tool-name">Wind</div>
-                    </button>
-                    
-                    <!-- Heat tool -->
-                    <button id="heat-tool" class="env-tool-button" data-tool="heat" title="Heat - Increases temperature in an area">
-                        <div class="tool-icon">🔥</div>
-                        <div class="tool-name">Heat</div>
-                    </button>
-                    
-                    <!-- Cold tool -->
-                    <button id="cold-tool" class="env-tool-button" data-tool="cold" title="Cold - Decreases temperature in an area">
-                        <div class="tool-icon">❄️</div>
-                        <div class="tool-name">Cold</div>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Container for dynamically loaded element buttons -->
-            <div id="element-buttons"></div>
-            
-            <div class="theme-toggle">
-                <label class="toggle-switch">
-                    <input type="checkbox" id="dark-mode-toggle" checked>
-                    <span class="toggle-slider"></span>
-                </label>
-                <span>Dark Mode</span>
-            </div>
+        <div id="header">
+            <h1>ElementalBox</h1>
         </div>
-        
-        <div id="canvas-container">
-            <canvas id="sandbox"></canvas>
+        <div id="content-container">
+            <div id="toolbar">
+                <div class="top-controls">
+                    <button id="pause-btn" class="action-btn" title="Pause/Resume simulation">Pause</button>
+                    <button id="export-btn" class="action-btn" title="Export simulation to JSON file">Export</button>
+                    <button id="import-btn" class="action-btn" title="Import simulation from JSON file">Import</button>
+                    <button id="screenshot-btn" class="action-btn" title="Save canvas as PNG image">Screenshot</button>
+                    <button id="reset-btn" class="action-btn warning" title="Clear the sandbox">Reset</button>
+                    <input type="file" id="import-file" accept=".json" style="display:none">
+                </div>
+                
+                <div id="status-bar">
+                    <span id="fps-counter">FPS: --</span>
+                    <span id="particle-count">Particles: 0</span>
+                </div>
+                
+                <div class="brush-controls">
+                    <div class="brush-size-container">
+                        <label for="brush-size">Brush:</label>
+                        <input type="range" id="brush-size" name="brush-size" min="1" max="20" value="6" style="flex-grow: 1; margin: 0 10px;">
+                        <span id="brush-size-value">6</span>
+                    </div>
+                    <div id="override-container">
+                        <button id="override-btn" class="action-btn">Override Elements</button>
+                    </div>
+                    <div id="no-boundaries-container">
+                        <button id="no-boundaries-btn" class="action-btn">Remove Floor/Ceiling</button>
+                    </div>
+                </div>
+                
+                <div class="tools-container">
+                    <h3 class="category-heading">Environmental Tools</h3>
+                    <div id="environmental-tools" class="environmental-tools">
+                        <!-- Wind tool -->
+                        <button id="wind-tool" class="env-tool-button" data-tool="wind" title="Wind - Push particles in direction of mouse movement">
+                            <div class="tool-icon">🌬️</div>
+                            <div class="tool-name">Wind</div>
+                        </button>
+                        
+                        <!-- Heat tool -->
+                        <button id="heat-tool" class="env-tool-button" data-tool="heat" title="Heat - Increases temperature in an area">
+                            <div class="tool-icon">🔥</div>
+                            <div class="tool-name">Heat</div>
+                        </button>
+                        
+                        <!-- Cold tool -->
+                        <button id="cold-tool" class="env-tool-button" data-tool="cold" title="Cold - Decreases temperature in an area">
+                            <div class="tool-icon">❄️</div>
+                            <div class="tool-name">Cold</div>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="element-buttons"></div>
+                
+                <div class="theme-toggle">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="dark-mode-toggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span>Dark Mode</span>
+                </div>
+            </div>
+            
+            <div id="canvas-container">
+                <canvas id="sandbox"></canvas>
+            </div>
+            
+            <!-- Hidden Ad Blocker Bait Elements -->
+            <div class="ad-bait" style="position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px;">
+                <div id="ad-slot" class="advertisement ad-placement adsbox"></div>
+                <ins class="adsbygoogle"></ins>
+            </div>
+            
+            <!-- Top Banner Ad Container - half size, positioned from middle to right -->
+            <div id="top-ad-container">
+                <div class="ad-label">Advertisement</div>
+                <!-- Google AdSense code would go here -->
+                <!-- Replace with your actual ad code in production -->
+                <div class="mobile-ad-content" style="width: 640px; height: 100px; background: #333; display: flex; align-items: center; justify-content: center; color: #888; font-size: 14px;">
+                    640×100 Top Banner Ad
+                </div>
+            </div>
+            
+            <!-- Side Banner Ad Container -->
+            <div id="side-ad-container">
+                <div class="ad-label">Advertisement</div>
+                <!-- Google AdSense code would go here -->
+                <!-- Replace with your actual ad code in production -->
+                <div class="mobile-ad-content" style="width: 100px; height: 500px; background: #333; display: flex; align-items: center; justify-content: center; color: #888; font-size: 14px; writing-mode: vertical-lr; text-orientation: mixed;">
+                    100×500 Side Banner Ad
+                </div>
+            </div>
         </div>
     </div>
     
@@ -821,6 +1130,20 @@
     
     <!-- Notification -->
     <div id="notification"></div>
+    
+    <!-- Ad Blocker Detection Overlay -->
+    <div id="ad-blocker-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); z-index: 9999; color: white; text-align: center; padding-top: 20%;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #333; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+            <h2 style="color: #ff4136; margin-bottom: 20px;">Ad Blocker Detected</h2>
+            <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                ElementalBox is supported by advertisements. Please disable your ad blocker to continue using this site.
+            </p>
+            <p style="font-size: 14px; color: #aaa; margin-bottom: 20px;">
+                After disabling your ad blocker, please refresh the page to continue.
+            </p>
+            <button id="refresh-btn" style="padding: 10px 20px; background-color: #00a8ff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Refresh Page</button>
+        </div>
+    </div>
     
     <!-- Load element scripts first -->
     <script src="scripts/element-registry.js"></script>
@@ -890,6 +1213,142 @@
                 document.body.classList.add('light-mode');
             }
         });
+    </script>
+    
+    <!-- Google AdSense Code (add your actual code here) -->
+    <script>
+        // Example Google AdSense code - replace with your actual publisher ID
+        /*
+        (Add the following script tag with your publisher ID)
+        async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+        crossorigin="anonymous"
+        */
+        
+        // In a real implementation, you would include code like this 
+        // to display ads in the ad containers:
+        /*
+        Example AdSense code:
+        
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+             data-ad-slot="XXXXXXXXXX"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        
+        Then push the ad with:
+        (adsbygoogle = window.adsbygoogle || []).push({});
+        */
+        
+        console.log("Ad containers are ready for Google AdSense implementation");
+    </script>
+    
+    <!-- Ad Blocker Detection Script -->
+    <script>
+        (function() {
+            // Flag to prevent multiple detections
+            let adBlockHandled = false;
+            
+            // Create an invisible ad element to detect if it gets blocked
+            function detectAdBlocker() {
+                // Skip if already handled
+                if (adBlockHandled) return;
+                
+                // Method 1: Basic element detection
+                const testAd = document.createElement('div');
+                testAd.className = 'adsbox';
+                testAd.innerHTML = '&nbsp;';
+                testAd.style.position = 'absolute';
+                testAd.style.opacity = '0';
+                testAd.style.top = '-999px';
+                document.body.appendChild(testAd);
+                
+                // Method 2: Create a bait element with ad-related names
+                const bait = document.createElement('div');
+                bait.id = 'ad-container';
+                bait.className = 'ad_unit adsbygoogle';
+                bait.style.height = '1px';
+                bait.style.width = '1px';
+                bait.style.position = 'absolute';
+                bait.style.left = '-999px';
+                bait.style.top = '-999px';
+                document.body.appendChild(bait);
+                
+                // Check for ad blocker after a short delay
+                setTimeout(function() {
+                    // If already handled, exit
+                    if (adBlockHandled) {
+                        return;
+                    }
+                    
+                    let adBlockDetected = false;
+                    
+                    // Check if our test ad element was hidden by an ad blocker
+                    if (testAd.offsetHeight === 0 || 
+                        testAd.offsetParent === null || 
+                        window.getComputedStyle(testAd).display === 'none') {
+                        adBlockDetected = true;
+                    }
+                    
+                    // Check if the bait element was affected by an ad blocker
+                    if (window.getComputedStyle(bait).display === 'none' ||
+                        bait.offsetParent === null) {
+                        adBlockDetected = true;
+                    }
+                    
+                    // Clean up
+                    try {
+                        document.body.removeChild(testAd);
+                        document.body.removeChild(bait);
+                    } catch (e) {
+                        // Elements may have been removed by an ad blocker
+                    }
+                    
+                    if (adBlockDetected) {
+                        handleAdBlockDetected();
+                    } else {
+                        // Make sure the UI is visible if no ad blocker is detected
+                        document.getElementById('ad-blocker-overlay').style.display = 'none';
+                        document.body.style.overflow = 'auto';
+                    }
+                }, 1000);
+            }
+            
+            // Handle detected ad blocker - only execute once
+            function handleAdBlockDetected() {
+                if (adBlockHandled) return;
+                adBlockHandled = true;
+                
+                // Show the overlay
+                document.getElementById('ad-blocker-overlay').style.display = 'block';
+                
+                // Disable scrolling of the body
+                document.body.style.overflow = 'hidden';
+                
+                // Set up refresh button
+                document.getElementById('refresh-btn').addEventListener('click', function() {
+                    window.location.reload();
+                });
+                
+                // Prevent interaction with the sandbox
+                const canvas = document.getElementById('sandbox');
+                if (canvas) {
+                    // Disable the canvas
+                    canvas.style.pointerEvents = 'none';
+                }
+                
+                console.log('Ad blocker detected! Site functionality limited.');
+            }
+            
+            // Check for ad blocker when the page loads
+            window.addEventListener('load', function() {
+                // Delay the check to ensure UI is loaded first
+                setTimeout(detectAdBlocker, 1500);
+            });
+            
+            // Also check periodically, but less frequently
+            setInterval(detectAdBlocker, 60000); // Check every minute instead of 30 seconds
+        })();
     </script>
 </body>
 </html>
