@@ -1,5 +1,5 @@
 {
-  "id": "com.elementalbox.app",
+  "id": "elementalbox.appnom",
   "name": "ElementalBox",
   "short_name": "ElementalBox",
   "description": "A particle sandbox simulation game",
@@ -23,8 +23,8 @@
   "related_applications": [
     {
       "platform": "play",
-      "url": "https://play.google.com/store/apps/details?id=com.elementalbox.app",
-      "id": "com.elementalbox.app"
+      "url": "https://play.google.com/store/apps/details?id=elementalbox.appnom",
+      "id": "elementalbox.appnom"
     }
   ],
   "screenshots": [

@@ -5,7 +5,7 @@
     "targetSdkVersion": 34,
     "maxSdkVersion": 34,
     "minSdkVersion": 24,
-    "packageName": "com.elementalbox.app",
+    "packageName": "elementalbox.appnom",
     "appName": "ElementalBox",
     "appVersionName": "1.2.0",
     "appVersionCode": 1,

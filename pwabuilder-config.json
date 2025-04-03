@@ -10,7 +10,7 @@
         "minSdkVersion": 24
       },
       "manifestPlaceholders": {
-        "applicationId": "com.elementalbox.app"
+        "applicationId": "elementalbox.appnom"
       }
     }
   }
