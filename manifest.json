@@ -1,12 +1,47 @@
 {
+  "id": "com.elementalbox.app",
   "name": "ElementalBox",
   "short_name": "ElementalBox",
   "description": "A particle sandbox simulation game",
   "start_url": "/index.html",
+  "scope": "/",
+  "scope_extensions": [
+    {
+      "origin": "https://elementalbox.netlify.app"
+    }
+  ],
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#00a8ff",
   "orientation": "any",
+  "dir": "ltr",
+  "lang": "en-US",
+  "categories": ["games", "entertainment", "simulation"],
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.elementalbox.app",
+      "id": "com.elementalbox.app"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/screen1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Main game screen"
+    },
+    {
+      "src": "screenshots/screen2.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Element selection screen"
+    }
+  ],
   "icons": [
     {
       "src": "icons/icon-192x192.png",
@@ -20,5 +55,8 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "launch_handler": {
+    "client_mode": ["auto"]
+  }
 } 
