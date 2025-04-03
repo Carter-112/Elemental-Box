@@ -1,0 +1,3100 @@
+// First, add import for ElementRegistry at the top
+import ElementRegistry from './scripts/element-registry.js';
+
+// First, add import for ElementLoader at the top
+import ElementLoader from './scripts/element-loader.js';
+
+// Constants
+const CELL_SIZE = 5;
+const GRAVITY = 0.2;
+const LIQUID_SPREAD = 4;
+const GAS_RISE = 0.5;
+const FPS_LIMIT = 60;
+const AUTOSAVE_DELAY = 1500; // 1.5 seconds
+
+// Define GRID_WIDTH and GRID_HEIGHT as aliases for gridWidth and gridHeight
+let GRID_WIDTH, GRID_HEIGHT;
+
+// Environment tool states
+let currentEnvTool = null;
+let activeEnvironmentTool = null; // Wind, heat, cold
+let windDirection = 'right'; // For wind: 'left', 'right', 'up', 'down'
+let envToolStrength = 5; // Default strength
+
+// Utility functions for particles
+function getDurability(type) {
+    switch (type) {
+        case 'sand': return 0.2;
+        case 'stone': return 0.05;
+        case 'brick': return 0.05;
+        case 'wood': return 0.1;
+        case 'plant': return 0.3;
+        case 'metal': return 0.04;
+        case 'explosive': return 0.2;
+        case 'glass': return 0.1;
+        case 'dirt': return 0.15;
+        case 'steel': return 0.01; // Very resistant
+        case 'ash': return 0.3;
+        
+        // New element durabilities
+        case 'fertilizer': return 0.2;
+        case 'resin': return 0.1;
+        case 'balloon': return 0.9; // Easily dissolved
+        case 'plasma': return 0; // Can't be dissolved
+        case 'static': return 0; // Can't be dissolved
+        case 'glass-shard': return 0.1;
+        case 'soap': return 0.4;
+        case 'bubble': return 1.0; // Immediately destroyed
+        case 'snow': return 0.3;
+        case 'salt': return 0.3;
+        case 'fuse': return 0.15;
+        case 'crystal': return 0.08;
+        case 'soil': return 0.2;
+        case 'virus': return 0.5; // Easily destroyed by acid
+        
+        // Liquids and gases are completely dissolved
+        case 'water': 
+        case 'oil': 
+        case 'lava':
+        case 'acid':
+        case 'steam':
+        case 'smoke':
+        case 'acid-gas':
+            return 1.0;
+            
+        default: return 0.1;
+    }
+}
+
+// Update getDefaultColor to include colors for new elements
+function getDefaultColor(type) {
+    switch (type) {
+        case 'sand': return '#e6c78c';
+        case 'water': return '#4286f4';
+        case 'stone': return '#888888';
+        case 'wood': return '#8B4513';
+        case 'fire': return '#FF4500';
+        case 'plant': return '#228B22';
+        case 'oil': return '#2e2e2e';
+        case 'lava': return '#FF4500';
+        case 'steam': return '#DCDCDC';
+        case 'ice': return '#ADD8E6';
+        case 'metal': return '#A9A9A9';
+        case 'explosive': return '#8B0000';
+        case 'smoke': return '#A9A9A9';
+        case 'ash': return '#696969';
+        case 'acid': return '#ADFF2F';
+        case 'dirt': return '#8B4513';
+        case 'brick': return '#B22222';
+        case 'glass': return '#F0F8FF';
+        case 'steel': return '#708090';
+        case 'salt': return '#FFFFFF';
+        
+        // New element colors
+        case 'fertilizer': return '#8B4513';
+        case 'resin': return '#DAA520';
+        case 'balloon': return '#FF6F61';
+        case 'plasma': return '#FF00FF';
+        case 'static': return '#FFFF33';
+        case 'glass-shard': return '#F0F8FF';
+        case 'soap': return '#87CEEB';
+        case 'bubble': return 'rgba(240, 248, 255, 0.5)';
+        case 'snow': return '#FFFAFA';
+        case 'fuse': return '#CD853F';
+        case 'acid-gas': return '#BFFF00';
+        case 'crystal': return '#E6E6FA';
+        case 'soil': return '#654321';
+        case 'virus': return '#32CD32';
+        
+        default: return '#FFFFFF';
+    }
+}
+
+function getDefaultTemperature(type) {
+    switch (type) {
+        case 'lava': return 1000;
+        case 'fire': return 150;
+        case 'ice': return -10;
+        case 'snow': return -5;
+        case 'plasma': return 3000;
+        case 'static': return 50;
+        case 'water': return 20;
+        case 'steam': return 110;
+        case 'acid-gas': return 50;
+        default: return 25; // Room temperature
+    }
+}
+
+function getExplosionRadius(type) {
+    switch (type) {
+        case 'explosive': return 8;
+        case 'balloon': return 2;
+        case 'plasma': return 3;
+        default: return 5;
+    }
+}
+
+function getBurnDuration(type) {
+    switch (type) {
+        case 'wood': return 400;
+        case 'plant': return 60;
+        case 'oil': return 200;
+        case 'explosive': return 5;
+        
+        // New element burn durations
+        case 'fertilizer': return 150;
+        case 'resin': return 300;
+        case 'balloon': return 20;
+        case 'fuse': return 120;
+        case 'soil': return 50;
+        
+        default: return 100;
+    }
+}
+
+function getStickiness(type) {
+    switch (type) {
+        case 'resin': return 0.8;
+        case 'soap': return 0.3;
+        default: return 0;
+    }
+}
+
+// Autosave functionality
+let lastAutosaveTime = 0;
+let pendingAutosave = null;
+
+// Autosave debounce function
+function scheduleAutosave() {
+    // Clear any existing timeout
+    if (pendingAutosave) {
+        clearTimeout(pendingAutosave);
+    }
+    
+    // Set a new timeout
+    pendingAutosave = setTimeout(() => {
+        saveToLocalStorage();
+        pendingAutosave = null;
+    }, AUTOSAVE_DELAY);
+}
+
+// Save the current state to localStorage
+function saveToLocalStorage() {
+    try {
+        const gridData = serializeGrid();
+        localStorage.setItem('elementabox_save', JSON.stringify(gridData));
+        lastAutosaveTime = Date.now();
+        console.log('Simulation saved to localStorage');
+    } catch (error) {
+        console.error('Failed to save simulation:', error);
+    }
+}
+
+// Load state from localStorage
+function loadFromLocalStorage() {
+    try {
+        const savedData = localStorage.getItem('elementabox_save');
+        if (savedData) {
+            const gridData = JSON.parse(savedData);
+            deserializeGrid(gridData);
+            console.log('Simulation loaded from localStorage');
+            return true;
+        }
+    } catch (error) {
+        console.error('Failed to load simulation:', error);
+    }
+    return false;
+}
+
+// Serialize the grid for saving
+function serializeGrid() {
+    const gridData = {
+        width: gridWidth,
+        height: gridHeight,
+        cells: []
+    };
+    
+    for (let y = 0; y < gridHeight; y++) {
+        for (let x = 0; x < gridWidth; x++) {
+            const particle = grid[y][x];
+            if (particle) {
+                gridData.cells.push({
+                    x: x,
+                    y: y,
+                    type: particle.type,
+                    color: particle.color,
+                    temperature: particle.temperature,
+                    burning: particle.burning,
+                    burnDuration: particle.burnDuration,
+                    activated: particle.activated,
+                    potency: particle.potency,
+                    flammable: particle.flammable,
+                    durability: particle.durability,
+                    stableCounter: particle.stableCounter
+                });
+            }
+        }
+    }
+    
+    return gridData;
+}
+
+// Deserialize and restore the grid
+function deserializeGrid(gridData) {
+    // Clear the grid first
+    initializeGrid();
+    
+    // Restore particles
+    gridData.cells.forEach(cell => {
+        if (isInBounds(cell.x, cell.y)) {
+            const particle = new Particle(cell.type, cell.color);
+            
+            // Restore properties
+            particle.temperature = cell.temperature;
+            particle.burning = cell.burning;
+            particle.burnDuration = cell.burnDuration;
+            particle.activated = cell.activated;
+            particle.potency = cell.potency;
+            particle.flammable = cell.flammable;
+            particle.durability = cell.durability;
+            particle.stableCounter = cell.stableCounter;
+            
+            grid[cell.y][cell.x] = particle;
+        }
+    });
+}
+
+// Export the current simulation to a JSON file
+function exportToJson() {
+    const gridData = serializeGrid();
+    const dataStr = JSON.stringify(gridData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = 'elementabox_save.json';
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    
+    showNotification('Simulation exported successfully!');
+}
+
+// Import a simulation from a JSON file
+function importFromJson(file) {
+    const reader = new FileReader();
+    
+    reader.onload = function(event) {
+        try {
+            const gridData = JSON.parse(event.target.result);
+            deserializeGrid(gridData);
+            showNotification('Simulation imported successfully!');
+        } catch (error) {
+            console.error('Failed to import simulation:', error);
+            showNotification('Failed to import simulation file!', 'error');
+        }
+    };
+    
+    reader.readAsText(file);
+}
+
+// Take a screenshot of the canvas
+function takeScreenshot() {
+    const dataUrl = canvas.toDataURL('image/png');
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUrl);
+    linkElement.setAttribute('download', 'elementabox_screenshot.png');
+    linkElement.click();
+    
+    showNotification('Screenshot saved!');
+}
+
+// Show a notification message
+function showNotification(message, type = 'success') {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.style.display = 'block';
+    notification.style.backgroundColor = type === 'success' ? 'rgba(0, 128, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)';
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            notification.style.display = 'none';
+            notification.style.opacity = '1';
+        }, 300);
+    }, 2000);
+}
+
+// Reset the sandbox
+function resetSandbox(clearStorage = false) {
+    // Clear the grid
+    for (let y = 0; y < gridHeight; y++) {
+        for (let x = 0; x < gridWidth; x++) {
+            grid[y][x] = null;
+        }
+    }
+    
+    // Reset environment tools
+    currentEnvTool = null;
+    windDirection = 'right';
+    envToolStrength = 5;
+    
+    // Clear localStorage if requested
+    if (clearStorage) {
+        localStorage.removeItem('elementalBoxState');
+        showNotification('Sandbox and saved data cleared', 'info');
+    } else {
+        showNotification('Sandbox cleared', 'info');
+    }
+    
+    // Force a render update
+    render();
+}
+
+// Particle class
+class Particle {
+    constructor(type, color) {
+        this.type = type;
+        this.color = color;
+        this.temperature = getDefaultTemperature(type);
+        this.burning = false;
+        this.burnDuration = 0;
+        this.processed = false;
+        this.flammable = ['wood', 'plant', 'oil', 'fuse', 'explosive', 'gunpowder', 
+                           'c4', 'dynamite', 'balloon', 'napalm', 'tar'].includes(type);
+        
+        // For special element properties
+        if (type === 'fire') {
+            this.burnDuration = 100;
+        } else if (type === 'bubble' || type === 'balloon') {
+            this.popProb = type === 'bubble' ? 0.01 : 0.001;
+            this.burnDuration = type === 'bubble' ? 300 : 0;
+        } else if (type === 'crystal') {
+            this.growthRate = 0.03;
+        } else if (type === 'plasma') {
+            this.temperature = 3000;
+        }
+    }
+}
+
+// Global variables for simulation state
+let canvas;
+let ctx;
+let grid = [];
+let gridWidth = 0;
+let gridHeight = 0;
+let isMouseDown = false;
+let lastMousePos = null;
+let currentElement = 'sand'; // Default element
+let brushSize = 6; // Default brush size
+let overrideMode = false;
+let frameCounter = 0;
+let isPaused = false;
+let lastFpsUpdate = 0;
+
+// Initialize the simulation
+function initializeGrid() {
+    grid = [];
+    for (let y = 0; y < gridHeight; y++) {
+        const row = [];
+        for (let x = 0; x < gridWidth; x++) {
+            row.push(null);
+        }
+        grid.push(row);
+    }
+}
+
+// Check if coordinates are within bounds
+function isInBounds(x, y) {
+    return x >= 0 && x < gridWidth && y >= 0 && y < gridHeight;
+}
+
+// Draw particles with the brush
+function drawWithBrush(exactX, exactY) {
+    const gridX = Math.floor(exactX);
+    const gridY = Math.floor(exactY);
+    
+    // Calculate the brush radius
+    const radius = Math.floor(brushSize / 2);
+    
+    // Create particles in a circle pattern
+    for (let y = -radius; y <= radius; y++) {
+        for (let x = -radius; x <= radius; x++) {
+            // Skip positions outside the circle
+            if (x*x + y*y > radius*radius) continue;
+            
+            // Calculate grid position
+            const px = gridX + x;
+            const py = gridY + y;
+            
+            // Create particle at this position if valid
+            if (isInBounds(px, py)) {
+                // Skip if not in override mode and there's already a particle
+                if (!overrideMode && grid[py][px] !== null) {
+                    continue;
+                }
+                
+                // Handle eraser
+                if (currentElement === 'eraser') {
+                    grid[py][px] = null;
+                    continue;
+                }
+                
+                // Create the particle using ElementRegistry
+                const particle = ElementRegistry.createParticle(currentElement);
+                if (particle) {
+                    grid[py][px] = particle;
+                }
+            }
+        }
+    }
+    
+    // Schedule an autosave after creating elements
+    scheduleAutosave();
+}
+
+// Resize canvas to fit window
+function resizeCanvas() {
+    const container = document.getElementById('canvas-container');
+    if (!container) return;
+    
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+    
+    gridWidth = Math.floor(canvas.width / CELL_SIZE);
+    gridHeight = Math.floor(canvas.height / CELL_SIZE);
+    
+    // Update global aliases
+    GRID_WIDTH = gridWidth;
+    GRID_HEIGHT = gridHeight;
+    
+    // Reinitialize grid if needed
+    if (grid.length === 0 || grid[0].length === 0) {
+        initializeGrid();
+    }
+}
+
+// Update function for animation loop
+function update() {
+    frameCounter++;
+    
+    if (!isPaused) {
+        processParticles();
+    }
+    
+    render();
+    
+    requestAnimationFrame(update);
+}
+
+// Add necessary events for mouse interaction
+function setupCanvasEvents() {
+    // Mouse down event - start drawing
+    canvas.addEventListener('mousedown', function(e) {
+        e.preventDefault(); // Prevent default behavior
+        isMouseDown = true;
+        
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        const exactX = ((e.clientX - rect.left) * scaleX) / CELL_SIZE;
+        const exactY = ((e.clientY - rect.top) * scaleY) / CELL_SIZE;
+        
+        lastMousePos = { x: exactX, y: exactY };
+        
+        applyBrushElement(exactX, exactY);
+    });
+    
+    // Mouse move event - continue drawing if mouse is down
+    canvas.addEventListener('mousemove', function(e) {
+        e.preventDefault(); // Prevent default behavior
+        
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        const exactX = ((e.clientX - rect.left) * scaleX) / CELL_SIZE;
+        const exactY = ((e.clientY - rect.top) * scaleY) / CELL_SIZE;
+        
+        lastMousePos = { x: exactX, y: exactY };
+        
+        if (isMouseDown) {
+            if (lastMousePos) {
+                interpolateLine(lastMousePos.x, lastMousePos.y, exactX, exactY);
+            }
+            lastMousePos = { x: exactX, y: exactY };
+        }
+    });
+    
+    // Mouse up event - stop drawing
+    canvas.addEventListener('mouseup', function(e) {
+        e.preventDefault(); // Prevent default behavior
+        isMouseDown = false;
+    });
+    
+    // Mouse leave event - stop drawing
+    canvas.addEventListener('mouseleave', function(e) {
+        e.preventDefault(); // Prevent default behavior
+        isMouseDown = false;
+        lastMousePos = null;
+    });
+}
+
+// Apply environmental effects
+function applyEnvironmentalEffect(centerX, centerY, radius) {
+    if (!currentEnvTool) return;
+    
+    for (let offsetY = -radius; offsetY <= radius; offsetY++) {
+        for (let offsetX = -radius; offsetX <= radius; offsetX++) {
+            // Calculate distance for falloff
+            const distance = Math.sqrt(offsetX*offsetX + offsetY*offsetY);
+            if (distance > radius) continue;
+            
+            const effectStrength = 1 - (distance / radius); // Strength falls off with distance
+            const posX = Math.floor(centerX) + offsetX;
+            const posY = Math.floor(centerY) + offsetY;
+            
+            if (!isInBounds(posX, posY)) continue;
+            
+            const particle = grid[posY][posX];
+            if (!particle) continue;
+            
+            switch (currentEnvTool) {
+                case 'wind':
+                    applyWind(posX, posY, effectStrength);
+                    break;
+                case 'heat':
+                    applyHeat(posX, posY, effectStrength);
+                    break;
+                case 'cold':
+                    applyCold(posX, posY, effectStrength);
+                    break;
+            }
+        }
+    }
+    
+    // Trigger autosave
+    scheduleAutosave();
+}
+
+// Apply wind force to particle
+function applyWind(x, y, strength) {
+    const particle = grid[y][x];
+    if (!particle) return;
+    
+    // Stickier particles are affected less
+    if (particle.stickiness && Math.random() < particle.stickiness) {
+        return;
+    }
+    
+    // Heavier particles are affected less
+    let moveChance = 0;
+    
+    // Calculate move chance based on particle type
+    switch (particle.type) {
+        case 'smoke':
+        case 'steam':
+        case 'acid-gas':
+        case 'fire':
+        case 'bubble':
+        case 'balloon':
+            moveChance = 0.8 * strength; // Light particles
+            break;
+        case 'water':
+        case 'oil':
+        case 'acid':
+            moveChance = 0.4 * strength; // Liquids
+            break;
+        case 'sand':
+        case 'gunpowder':
+        case 'salt':
+        case 'explosive-powder':
+        case 'ash':
+        case 'snow':
+            moveChance = 0.3 * strength; // Granular solids
+            break;
+        default:
+            moveChance = 0.1 * strength; // Other particles
+    }
+    
+    if (Math.random() > moveChance) return;
+    
+    // Apply movement based on direction
+    let newX = x;
+    let newY = y;
+    
+    switch (windDirection) {
+        case 'right':
+            newX = x + 1;
+            break;
+        case 'left':
+            newX = x - 1;
+            break;
+        case 'up':
+            newY = y - 1;
+            break;
+        case 'down':
+            newY = y + 1;
+            break;
+    }
+    
+    // Only move if the target cell is empty
+    if (isInBounds(newX, newY) && !grid[newY][newX]) {
+        grid[newY][newX] = grid[y][x];
+        grid[y][x] = null;
+    }
+}
+
+// Apply heat to particle
+function applyHeat(x, y, strength) {
+    const particle = grid[y][x];
+    if (!particle) return;
+    
+    // Increase temperature
+    particle.temperature += 50 * strength;
+    
+    // Type-specific heat effects
+    switch (particle.type) {
+        case 'ice':
+            if (particle.temperature > 0 && Math.random() < 0.2 * strength) {
+                grid[y][x] = new Particle('water', getDefaultColor('water'));
+            }
+            break;
+            
+        case 'snow':
+            if (particle.temperature > 0 && Math.random() < 0.3 * strength) {
+                grid[y][x] = new Particle('water', getDefaultColor('water'));
+            }
+            break;
+            
+        case 'water':
+            if (particle.temperature > 100 && Math.random() < 0.2 * strength) {
+                grid[y][x] = new Particle('steam', getDefaultColor('steam'));
+            }
+            break;
+            
+        case 'plant':
+        case 'wood':
+            if (particle.temperature > 200 && !particle.burning && Math.random() < 0.1 * strength) {
+                particle.burning = true;
+                particle.burnDuration = getBurnDuration(particle.type);
+            }
+            break;
+            
+        case 'crystal':
+            if (particle.temperature > 300 && Math.random() < 0.2 * strength) {
+                // Crystal shatters with heat
+                grid[y][x] = null;
+                
+                // Create glass shards
+                for (let i = 0; i < 3; i++) {
+                    const dx = Math.floor(Math.random() * 3) - 1;
+                    const dy = Math.floor(Math.random() * 3) - 1;
+                    
+                    if (isInBounds(x + dx, y + dy) && !grid[y + dy][x + dx]) {
+                        grid[y + dy][x + dx] = new Particle('glass-shard', getDefaultColor('glass-shard'));
+                    }
+                }
+            }
+            break;
+            
+        case 'glue':
+            if (particle.temperature > 150 && Math.random() < 0.2 * strength) {
+                // Glue turns to resin with heat
+                grid[y][x] = new Particle('resin', getDefaultColor('resin'));
+            }
+            break;
+            
+        // Flammable materials can ignite
+        case 'oil':
+        case 'gunpowder':
+        case 'c4':
+        case 'explosive-powder':
+        case 'napalm':
+        case 'tar':
+            if (particle.temperature > 250 && !particle.burning && Math.random() < 0.15 * strength) {
+                particle.burning = true;
+                particle.burnDuration = getBurnDuration(particle.type);
+            }
+            break;
+    }
+}
+
+// Apply cold to particle
+function applyCold(x, y, strength) {
+    const particle = grid[y][x];
+    if (!particle) return;
+    
+    // Decrease temperature
+    particle.temperature -= 30 * strength;
+    
+    // Type-specific cold effects
+    switch (particle.type) {
+        case 'water':
+            if (particle.temperature < 0 && Math.random() < 0.2 * strength) {
+                grid[y][x] = new Particle('ice', getDefaultColor('ice'));
+            }
+            break;
+            
+        case 'steam':
+            if (particle.temperature < 100 && Math.random() < 0.3 * strength) {
+                grid[y][x] = new Particle('water', getDefaultColor('water'));
+            }
+            break;
+            
+        case 'lava':
+            if (particle.temperature < 800 && Math.random() < 0.15 * strength) {
+                grid[y][x] = new Particle('stone', getDefaultColor('stone'));
+            }
+            break;
+            
+        case 'fire':
+            if (Math.random() < 0.4 * strength) {
+                // Fire is extinguished by cold
+                grid[y][x] = null;
+            }
+            break;
+            
+        case 'plasma':
+            if (particle.temperature < 1500 && Math.random() < 0.2 * strength) {
+                // Plasma cools into fire
+                grid[y][x] = new Particle('fire', getDefaultColor('fire'));
+            }
+            break;
+            
+        case 'crystal':
+            // Crystals grow faster in cold
+            if (Math.random() < particle.growthRate * 2 * strength) {
+                // Try to grow in a random direction
+                const dirs = [
+                    { dx: 0, dy: -1 }, // up
+                    { dx: 1, dy: 0 },  // right
+                    { dx: 0, dy: 1 },  // down
+                    { dx: -1, dy: 0 }  // left
+                ];
+                
+                const dir = dirs[Math.floor(Math.random() * dirs.length)];
+                const newX = x + dir.dx;
+                const newY = y + dir.dy;
+                
+                if (isInBounds(newX, newY) && !grid[newY][newX]) {
+                    // Grow a new crystal
+                    grid[newY][newX] = new Particle('crystal', getDefaultColor('crystal'));
+                }
+            }
+            break;
+    }
+    
+    // Slow down or stop burning
+    if (particle.burning && Math.random() < 0.3 * strength) {
+        particle.burning = false;
+    }
+}
+
+// Update drawWithBrush to handle element interactions
+function drawWithBrush(x, y) {
+    // If an environmental tool is active, apply it instead
+    if (currentEnvTool) {
+        applyEnvironmentalEffect(x, y, brushSize);
+        return;
+    }
+    
+    // Calculate the center grid position
+    const centerX = Math.floor(x);
+    const centerY = Math.floor(y);
+    
+    if (!isInBounds(centerX, centerY)) return;
+    
+    // Draw in a circular area around the center
+    for (let offsetY = -Math.floor(brushSize / 2); offsetY <= Math.floor(brushSize / 2); offsetY++) {
+        for (let offsetX = -Math.floor(brushSize / 2); offsetX <= Math.floor(brushSize / 2); offsetX++) {
+            const newX = centerX + offsetX;
+            const newY = centerY + offsetY;
+            
+            if (!isInBounds(newX, newY)) continue;
+            
+            // Check if within brush radius for circular brush
+            if (Math.sqrt(offsetX*offsetX + offsetY*offsetY) > brushSize/2) continue;
+            
+            createParticle(newX, newY, currentElement);
+        }
+    }
+    
+    // Schedule autosave after drawing
+    scheduleAutosave();
+}
+
+// Draw a line between two points using linear interpolation
+function interpolateLine(x1, y1, x2, y2) {
+    // Calculate the distance between the points
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // The number of points to draw
+    const steps = Math.max(Math.ceil(distance * 2), 1);
+    
+    // Draw points along the line
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const x = x1 + dx * t;
+        const y = y1 + dy * t;
+        
+        // Draw at this interpolated position
+        applyBrushElement(x, y);
+    }
+}
+
+// Add these new element processing functions
+
+// Process fertilizer - enhances plant growth
+function processFertilizer(x, y) {
+    // Check for plants and water nearby
+    const radius = 3; // Radius of effect
+    let hasWaterNearby = false;
+    const plantsNearby = [];
+    
+    // First check for water
+    for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+            const newX = x + dx;
+            const newY = y + dy;
+            
+            if (!isInBounds(newX, newY)) continue;
+            
+            const particle = grid[newY][newX];
+            if (particle && particle.type === 'water') {
+                hasWaterNearby = true;
+                break;
+            }
+        }
+        if (hasWaterNearby) break;
+    }
+    
+    // If water is present, find plants to boost
+    if (hasWaterNearby) {
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const newX = x + dx;
+                const newY = y + dy;
+                
+                if (!isInBounds(newX, newY)) continue;
+                
+                const particle = grid[newY][newX];
+                if (particle && particle.type === 'plant') {
+                    plantsNearby.push({ x: newX, y: newY, particle: particle });
+                }
+            }
+        }
+        
+        // Boost plant growth
+        if (plantsNearby.length > 0 && Math.random() < 0.3) {
+            const plant = plantsNearby[Math.floor(Math.random() * plantsNearby.length)];
+            const plantX = plant.x;
+            const plantY = plant.y;
+            
+            // Try to grow the plant faster
+            const growthDirections = [
+                { dx: 0, dy: -1 },  // up
+                { dx: -1, dy: 0 },  // left
+                { dx: 1, dy: 0 },   // right
+                { dx: -1, dy: -1 }, // up-left
+                { dx: 1, dy: -1 }   // up-right
+            ];
+            
+            // Try to grow in a random direction
+            const randomDir = growthDirections[Math.floor(Math.random() * growthDirections.length)];
+            const newPlantX = plantX + randomDir.dx;
+            const newPlantY = plantY + randomDir.dy;
+            
+            if (isInBounds(newPlantX, newPlantY) && !grid[newPlantY][newPlantX]) {
+                grid[newPlantY][newPlantX] = new Particle('plant', getDefaultColor('plant'));
+                grid[newPlantY][newPlantX].flammable = true;
+            }
+        }
+        
+        // Fertilizer is consumed slowly when used
+        if (Math.random() < 0.01) {
+            grid[y][x] = null;
+        }
+    }
+    
+    // Fertilizer behaves like sand
+    processSand(x, y);
+}
+
+// Process resin - solid that holds particles in place
+function processResin(x, y) {
+    // Resin is sticky and holds particles in place
+    // It doesn't move after being placed
+    
+    // If resin is burning, it burns slowly
+    const particle = grid[y][x];
+    if (particle.burning) {
+        // Show burning effect
+        if (Math.random() < 0.2 && y > 0 && !grid[y-1][x]) {
+            const fire = new Particle('fire', getDefaultColor('fire'));
+            fire.burnDuration = 15;
+            grid[y-1][x] = fire;
+        }
+        
+        // Burn slowly
+        particle.burnDuration--;
+        
+        // When fully burned, leave ash
+        if (particle.burnDuration <= 0) {
+            grid[y][x] = new Particle('ash', getDefaultColor('ash'));
+        }
+    }
+}
+
+// Process balloon - floats upward and can pop
+function processBalloon(x, y) {
+    const balloon = grid[y][x];
+    
+    // Check if balloon should pop
+    if (shouldPop(x, y, balloon)) {
+        popBalloon(x, y);
+        return;
+    }
+    
+    // Balloon is buoyant and rises
+    if (y > 0 && Math.random() < 0.8) {
+        if (!grid[y-1][x]) {
+            grid[y-1][x] = grid[y][x];
+            grid[y][x] = null;
+        } else {
+            // Try moving diagonally up
+            const directions = [
+                { dx: -1, dy: -1 }, // up-left
+                { dx: 1, dy: -1 }   // up-right
+            ];
+            
+            const randomDir = directions[Math.floor(Math.random() * directions.length)];
+            const newX = x + randomDir.dx;
+            const newY = y + randomDir.dy;
+            
+            if (isInBounds(newX, newY) && !grid[newY][newX]) {
+                grid[newY][newX] = grid[y][x];
+                grid[y][x] = null;
+            }
+        }
+    }
+}
+
+// Check if a balloon or bubble should pop
+function shouldPop(x, y, particle) {
+    // Random chance to pop
+    if (Math.random() < particle.popProb) return true;
+    
+    // Check neighbors that could cause popping
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+        { dx: -1, dy: -1 }, // up-left
+        { dx: 1, dy: -1 },  // up-right
+        { dx: -1, dy: 1 },  // down-left
+        { dx: 1, dy: 1 }    // down-right
+    ];
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY)) continue;
+        
+        const neighbor = grid[newY][newX];
+        if (!neighbor) continue;
+        
+        // Check for things that pop balloons/bubbles
+        if (neighbor.type === 'fire' || 
+            neighbor.type === 'glass-shard' || 
+            neighbor.type === 'static' ||
+            neighbor.type === 'plasma' ||
+            neighbor.burning) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Pop a balloon with small effect
+function popBalloon(x, y) {
+    // Remove the balloon
+    grid[y][x] = null;
+    
+    // Create small explosion effect
+    for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+            const newX = x + dx;
+            const newY = y + dy;
+            
+            if (!isInBounds(newX, newY)) continue;
+            
+            // Clear adjacent cells with 50% chance for a small burst effect
+            if (Math.random() < 0.5) {
+                grid[newY][newX] = null;
+            }
+        }
+    }
+    
+    // Sometimes create a fire particle at the center
+    if (Math.random() < 0.3) {
+        grid[y][x] = new Particle('fire', getDefaultColor('fire'));
+        grid[y][x].burnDuration = 10;
+    }
+}
+
+// Process plasma - ultra-hot state that ignites everything it touches
+function processPlasma(x, y) {
+    // Plasma rises quickly
+    if (y > 0 && Math.random() < 0.7) {
+        if (!grid[y-1][x]) {
+            grid[y-1][x] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        }
+    }
+    
+    // Plasma cools down over time
+    const plasma = grid[y][x];
+    plasma.temperature -= 5;
+    
+    // If plasma cools enough, convert to fire
+    if (plasma.temperature < 1500 && Math.random() < 0.1) {
+        grid[y][x] = new Particle('fire', getDefaultColor('fire'));
+        grid[y][x].burnDuration = 100;
+        return;
+    }
+    
+    // Ignite everything it touches
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+        { dx: -1, dy: -1 }, // up-left
+        { dx: 1, dy: -1 },  // up-right
+        { dx: -1, dy: 1 },  // down-left
+        { dx: 1, dy: 1 }    // down-right
+    ];
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY)) continue;
+        
+        const neighbor = grid[newY][newX];
+        if (!neighbor) continue;
+        
+        // Plasma instantly ignites flammable materials
+        if (neighbor.flammable && !neighbor.burning) {
+            neighbor.burning = true;
+            neighbor.burnDuration = getBurnDuration(neighbor.type);
+        }
+        
+        // Plasma can melt certain materials
+        if (neighbor.type === 'ice' || neighbor.type === 'snow') {
+            grid[newY][newX] = new Particle('steam', getDefaultColor('steam'));
+        } else if (neighbor.type === 'water') {
+            grid[newY][newX] = new Particle('steam', getDefaultColor('steam'));
+        } else if (neighbor.type === 'glass' || neighbor.type === 'glass-shard' || neighbor.type === 'sand') {
+            grid[newY][newX] = new Particle('lava', getDefaultColor('lava'));
+        } else if (neighbor.type === 'metal' && Math.random() < 0.3) {
+            grid[newY][newX] = new Particle('lava', getDefaultColor('lava'));
+        }
+    }
+}
+
+// Add these to the main processParticles function after the existing switch cases
+// Inside the processParticles function, add these case statements:
+/*
+case 'fertilizer':
+    processFertilizer(x, y);
+    break;
+case 'resin':
+    processResin(x, y);
+    break;
+case 'balloon':
+    processBalloon(x, y);
+    break;
+case 'plasma':
+    processPlasma(x, y);
+    break;
+*/
+
+// Process static electricity - creates electricity effects and causes reactions
+function processStatic(x, y) {
+    const staticParticle = grid[y][x];
+    
+    // Static electricity occasionally jumps
+    if (Math.random() < 0.2) {
+        // Find available directions
+        const directions = [];
+        
+        // Check up, down, left, right
+        const possibleDirs = [
+            { dx: 0, dy: -1 }, // up
+            { dx: 0, dy: 1 },  // down 
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 }   // right
+        ];
+        
+        for (const dir of possibleDirs) {
+            const newX = x + dir.dx;
+            const newY = y + dir.dy;
+            
+            if (!isInBounds(newX, newY)) continue;
+            
+            // Static can jump to empty spaces or conductors
+            if (!grid[newY][newX] || 
+                (grid[newY][newX] && (grid[newY][newX].type === 'metal' || grid[newY][newX].type === 'water'))) {
+                directions.push(dir);
+            }
+        }
+        
+        // If we have somewhere to go, jump there
+        if (directions.length > 0) {
+            const randomDir = directions[Math.floor(Math.random() * directions.length)];
+            const newX = x + randomDir.dx;
+            const newY = y + randomDir.dy;
+            
+            // If target is empty, move there
+            if (!grid[newY][newX]) {
+                grid[newY][newX] = grid[y][x];
+                grid[y][x] = null;
+            }
+            // If target is a conductor, convert to static and remove original
+            else if (grid[newY][newX].type === 'metal' || grid[newY][newX].type === 'water') {
+                grid[newY][newX] = new Particle('static', getDefaultColor('static'));
+                grid[y][x] = null;
+            }
+        }
+    }
+    
+    // Static electricity has reactions with nearby particles
+    const radius = 2;
+    for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+            const newX = x + dx;
+            const newY = y + dy;
+            
+            if (!isInBounds(newX, newY) || !grid[newY][newX]) continue;
+            
+            const neighbor = grid[newY][newX];
+            
+            // Ignite flammable materials
+            if (neighbor.flammable && !neighbor.burning && Math.random() < 0.1) {
+                neighbor.burning = true;
+                neighbor.burnDuration = getBurnDuration(neighbor.type);
+            }
+            
+            // Static interacts with oil to create fire
+            if (neighbor.type === 'oil' && Math.random() < 0.2) {
+                grid[newY][newX] = new Particle('fire', getDefaultColor('fire'));
+            }
+            
+            // Static can sometimes create plasma
+            if ((neighbor.type === 'fire' || neighbor.type === 'smoke') && Math.random() < 0.05) {
+                grid[newY][newX] = new Particle('plasma', getDefaultColor('plasma'));
+                grid[newY][newX].temperature = 3000;
+            }
+            
+            // Static loses energy over time
+            if (Math.random() < 0.01) {
+                grid[y][x] = null;
+            }
+        }
+    }
+}
+
+// Process glass shard - sharp particles that cause damage
+function processGlassShard(x, y) {
+    // Glass shards behave like sand but can cut things
+    if (y < gridHeight - 1) {
+        // Move down if possible
+        if (!grid[y + 1][x]) {
+            grid[y + 1][x] = grid[y][x];
+            grid[y][x] = null;
+        }
+        // Try to slide down diagonally
+        else if (x > 0 && !grid[y + 1][x - 1]) {
+            grid[y + 1][x - 1] = grid[y][x];
+            grid[y][x] = null;
+        }
+        else if (x < gridWidth - 1 && !grid[y + 1][x + 1]) {
+            grid[y + 1][x + 1] = grid[y][x];
+            grid[y][x] = null;
+        }
+    }
+    
+    // Glass shards can pop balloons and bubbles
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+        { dx: -1, dy: -1 }, // up-left
+        { dx: 1, dy: -1 },  // up-right
+        { dx: -1, dy: 1 },  // down-left
+        { dx: 1, dy: 1 }    // down-right
+    ];
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY) || !grid[newY][newX]) continue;
+        
+        const neighbor = grid[newY][newX];
+        
+        if (neighbor.type === 'balloon' || neighbor.type === 'bubble') {
+            // Pop the balloon or bubble
+            grid[newY][newX] = null;
+        }
+    }
+}
+
+// Process soap - creates bubbles when agitated
+function processSoap(x, y) {
+    // Soap behaves like a viscous liquid
+    if (y < gridHeight - 1) {
+        // Move down if possible
+        if (!grid[y + 1][x]) {
+            grid[y + 1][x] = grid[y][x];
+            grid[y][x] = null;
+        }
+        // Try to spread out at the bottom
+        else if (Math.random() < LIQUID_SPREAD) {
+            const directions = [];
+            
+            if (x > 0 && !grid[y][x - 1]) directions.push({ dx: -1, dy: 0 });
+            if (x < gridWidth - 1 && !grid[y][x + 1]) directions.push({ dx: 1, dy: 0 });
+            
+            if (directions.length > 0) {
+                const randomDir = directions[Math.floor(Math.random() * directions.length)];
+                const newX = x + randomDir.dx;
+                const newY = y + randomDir.dy;
+                
+                grid[newY][newX] = grid[y][x];
+                grid[y][x] = null;
+            }
+        }
+    }
+    
+    // Soap interacts with water to create bubbles
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+        { dx: -1, dy: -1 }, // up-left
+        { dx: 1, dy: -1 },  // up-right
+        { dx: -1, dy: 1 },  // down-left
+        { dx: 1, dy: 1 }    // down-right
+    ];
+    
+    let interactedWithWater = false;
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY) || !grid[newY][newX]) continue;
+        
+        const neighbor = grid[newY][newX];
+        
+        // Soap creates bubbles when it contacts water
+        if (neighbor.type === 'water' && Math.random() < 0.1) {
+            interactedWithWater = true;
+            
+            // Try to find a spot for the bubble, prioritize above
+            const bubbleDirs = [
+                { dx: 0, dy: -1 }, // up
+                { dx: -1, dy: -1 }, // up-left
+                { dx: 1, dy: -1 },  // up-right
+                { dx: -1, dy: 0 }, // left
+                { dx: 1, dy: 0 }   // right
+            ];
+            
+            let placed = false;
+            for (const bubbleDir of bubbleDirs) {
+                const bubbleX = x + bubbleDir.dx;
+                const bubbleY = y + bubbleDir.dy;
+                
+                if (isInBounds(bubbleX, bubbleY) && !grid[bubbleY][bubbleX]) {
+                    // Create a bubble
+                    grid[bubbleY][bubbleX] = new Particle('bubble', getDefaultColor('bubble'));
+                    grid[bubbleY][bubbleX].popProb = 0.01; // Low chance to pop randomly
+                    placed = true;
+                    break;
+                }
+            }
+            
+            // Sometimes consume some water or soap in the reaction
+            if (placed && Math.random() < 0.3) {
+                if (Math.random() < 0.5) {
+                    grid[newY][newX] = null; // Remove water
+                } else {
+                    grid[y][x] = null; // Remove soap
+                    return; // End processing if soap is removed
+                }
+            }
+        }
+    }
+}
+
+// Process bubble - floats upward and can be popped
+function processBubble(x, y) {
+    const bubble = grid[y][x];
+    
+    // Check if bubble should pop
+    if (shouldPop(x, y, bubble)) {
+        grid[y][x] = null; // Bubbles just disappear when popped
+        return;
+    }
+    
+    // Bubbles are buoyant and rise
+    if (y > 0 && Math.random() < 0.9) {
+        if (!grid[y-1][x]) {
+            grid[y-1][x] = grid[y][x];
+            grid[y][x] = null;
+        } else {
+            // Try moving diagonally up
+            const directions = [
+                { dx: -1, dy: -1 }, // up-left
+                { dx: 1, dy: -1 }   // up-right
+            ];
+            
+            const randomDir = directions[Math.floor(Math.random() * directions.length)];
+            const newX = x + randomDir.dx;
+            const newY = y + randomDir.dy;
+            
+            if (isInBounds(newX, newY) && !grid[newY][newX]) {
+                grid[newY][newX] = grid[y][x];
+                grid[y][x] = null;
+            }
+        }
+    }
+    
+    // Bubbles also drift side to side occasionally
+    else if (Math.random() < 0.2) {
+        const directions = [
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 }   // right
+        ];
+        
+        const randomDir = directions[Math.floor(Math.random() * directions.length)];
+        const newX = x + randomDir.dx;
+        const newY = y;
+        
+        if (isInBounds(newX, newY) && !grid[newY][newX]) {
+            grid[newY][newX] = grid[y][x];
+            grid[y][x] = null;
+        }
+    }
+    
+    // Bubbles have a lifetime and may pop naturally
+    bubble.burnDuration = bubble.burnDuration || 300; // Reuse burnDuration as lifetime
+    bubble.burnDuration--;
+    
+    if (bubble.burnDuration <= 0) {
+        grid[y][x] = null;
+    }
+}
+
+// Add these to the main processParticles function after the existing switch cases
+// Inside the processParticles function, add these case statements:
+/*
+case 'static':
+    processStatic(x, y);
+    break;
+case 'glass-shard':
+    processGlassShard(x, y);
+    break;
+case 'soap':
+    processSoap(x, y);
+    break;
+case 'bubble':
+    processBubble(x, y);
+    break;
+*/
+
+// Process snow - cold powder that can melt
+function processSnow(x, y) {
+    const snow = grid[y][x];
+    
+    // Check temperature for melting
+    if (snow.temperature > 0) {
+        // Snow melts into water
+        if (Math.random() < 0.2) {
+            grid[y][x] = new Particle('water', getDefaultColor('water'));
+            return;
+        }
+    }
+    
+    // Snow falls like sand but slower
+    if (y < gridHeight - 1 && Math.random() < 0.7) {
+        // Move down if possible
+        if (!grid[y + 1][x]) {
+            grid[y + 1][x] = grid[y][x];
+            grid[y][x] = null;
+        }
+        // Try to slide down diagonally
+        else if (x > 0 && !grid[y + 1][x - 1]) {
+            grid[y + 1][x - 1] = grid[y][x];
+            grid[y][x] = null;
+        }
+        else if (x < gridWidth - 1 && !grid[y + 1][x + 1]) {
+            grid[y + 1][x + 1] = grid[y][x];
+            grid[y][x] = null;
+        }
+    }
+    
+    // Snow cools nearby cells
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+    ];
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY) || !grid[newY][newX]) continue;
+        
+        const neighbor = grid[newY][newX];
+        
+        // Cool neighbor particles
+        if (neighbor.temperature > -5) {
+            neighbor.temperature -= 1;
+        }
+        
+        // Snow has a chance to freeze nearby water
+        if (neighbor.type === 'water' && Math.random() < 0.05) {
+            grid[newY][newX] = new Particle('ice', getDefaultColor('ice'));
+        }
+    }
+}
+
+// Process salt - can be dissolved in water and affects freezing
+function processSalt(x, y) {
+    // Salt behaves like sand
+    if (y < gridHeight - 1) {
+        // Move down if possible
+        if (!grid[y + 1][x]) {
+            grid[y + 1][x] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        }
+        // Try to slide down diagonally
+        else if (x > 0 && !grid[y + 1][x - 1]) {
+            grid[y + 1][x - 1] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        }
+        else if (x < gridWidth - 1 && !grid[y + 1][x + 1]) {
+            grid[y + 1][x + 1] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        }
+    }
+    
+    // Salt interacts with water and ice
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+    ];
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY) || !grid[newY][newX]) continue;
+        
+        const neighbor = grid[newY][newX];
+        
+        // Salt dissolves in water
+        if (neighbor.type === 'water' && Math.random() < 0.3) {
+            // The water dissolves the salt (salt disappears)
+            grid[y][x] = null;
+            
+            // Change water color slightly to indicate salt water
+            grid[newY][newX].color = adjustColor(grid[newY][newX].color, 10, 10, 15);
+            
+            // Salt water resists freezing
+            grid[newY][newX].temperature -= 10; // Lower freezing point
+            break;
+        }
+        
+        // Salt melts ice
+        if (neighbor.type === 'ice' && Math.random() < 0.05) {
+            grid[newY][newX] = new Particle('water', getDefaultColor('water'));
+            grid[newY][newX].temperature = -2; // Cold water
+            
+            // Salt is consumed in the process
+            if (Math.random() < 0.5) {
+                grid[y][x] = null;
+                break;
+            }
+        }
+    }
+}
+
+// Adjust color by adding specified RGB values
+function adjustColor(color, r, g, b) {
+    // Extract RGB components
+    const rHex = color.slice(1, 3);
+    const gHex = color.slice(3, 5);
+    const bHex = color.slice(5, 7);
+    
+    // Convert to decimal
+    let rDec = parseInt(rHex, 16);
+    let gDec = parseInt(gHex, 16);
+    let bDec = parseInt(bHex, 16);
+    
+    // Adjust values
+    rDec = Math.min(255, Math.max(0, rDec + r));
+    gDec = Math.min(255, Math.max(0, gDec + g));
+    bDec = Math.min(255, Math.max(0, bDec + b));
+    
+    // Convert back to hex
+    const newR = rDec.toString(16).padStart(2, '0');
+    const newG = gDec.toString(16).padStart(2, '0');
+    const newB = bDec.toString(16).padStart(2, '0');
+    
+    return `#${newR}${newG}${newB}`;
+}
+
+// Process fuse - burns slowly and can trigger explosives
+function processFuse(x, y) {
+    const fuse = grid[y][x];
+    
+    // If fuse is burning, propagate slowly
+    if (fuse.burning) {
+        // Show burning effect
+        if (Math.random() < 0.3 && y > 0 && !grid[y-1][x]) {
+            const fire = new Particle('fire', getDefaultColor('fire'));
+            fire.burnDuration = 10;
+            grid[y-1][x] = fire;
+        }
+        
+        // Burn slowly
+        fuse.burnDuration--;
+        
+        // Check nearby cells for things to ignite
+        if (fuse.burnDuration <= 0) {
+            // When fully burned, disappear
+            grid[y][x] = null;
+            
+            // Check neighbors for explosives or other fuses
+            const directions = [
+                { dx: -1, dy: 0 }, // left
+                { dx: 1, dy: 0 },  // right
+                { dx: 0, dy: -1 }, // up
+                { dx: 0, dy: 1 },  // down
+                { dx: -1, dy: -1 }, // up-left
+                { dx: 1, dy: -1 },  // up-right
+                { dx: -1, dy: 1 },  // down-left
+                { dx: 1, dy: 1 }    // down-right
+            ];
+            
+            for (const dir of directions) {
+                const newX = x + dir.dx;
+                const newY = y + dir.dy;
+                
+                if (!isInBounds(newX, newY) || !grid[newY][newX]) continue;
+                
+                const neighbor = grid[newY][newX];
+                
+                // Ignite another fuse
+                if (neighbor.type === 'fuse' && !neighbor.burning) {
+                    neighbor.burning = true;
+                    neighbor.burnDuration = getBurnDuration('fuse');
+                }
+                
+                // Trigger explosives
+                if (neighbor.type === 'explosive') {
+                    explode(newX, newY, getExplosionRadius('explosive'));
+                }
+            }
+        }
+    }
+    
+    // Fuses don't move
+}
+
+// Process smoke - rises and dissipates
+function processSmoke(x, y) {
+    const smoke = grid[y][x];
+    
+    // Smoke has a limited lifetime
+    smoke.burnDuration = smoke.burnDuration || 200; // Reuse burnDuration as lifetime
+    smoke.burnDuration--;
+    
+    if (smoke.burnDuration <= 0) {
+        grid[y][x] = null;
+        return;
+    }
+    
+    // Smoke fades over time
+    if (smoke.burnDuration < 100) {
+        // Adjust opacity based on remaining lifetime
+        const opacity = Math.max(0.2, smoke.burnDuration / 100);
+        smoke.color = adjustOpacity(smoke.color, opacity);
+    }
+    
+    // Smoke rises with some randomness
+    if (y > 0 && Math.random() < GAS_RISE) {
+        const directions = [];
+        
+        // Prefer upward movement
+        if (!grid[y-1][x]) directions.push({ dx: 0, dy: -1, weight: 10 }); // Up (weighted higher)
+        if (x > 0 && !grid[y-1][x-1]) directions.push({ dx: -1, dy: -1, weight: 5 }); // Up-left
+        if (x < gridWidth - 1 && !grid[y-1][x+1]) directions.push({ dx: 1, dy: -1, weight: 5 }); // Up-right
+        
+        // Sometimes move sideways
+        if (x > 0 && !grid[y][x-1]) directions.push({ dx: -1, dy: 0, weight: 2 }); // Left
+        if (x < gridWidth - 1 && !grid[y][x+1]) directions.push({ dx: 1, dy: 0, weight: 2 }); // Right
+        
+        if (directions.length > 0) {
+            // Use weighted random selection
+            const weights = directions.map(dir => dir.weight);
+            const direction = weightedRandom(directions, weights);
+            
+            const newX = x + direction.dx;
+            const newY = y + direction.dy;
+            
+            grid[newY][newX] = grid[y][x];
+            grid[y][x] = null;
+        }
+    }
+}
+
+// Helper function to adjust opacity of a color
+function adjustOpacity(color, opacity) {
+    // Extract RGB components
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    
+    // Return color with opacity
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+// Helper function for weighted random selection
+function weightedRandom(items, weights) {
+    // Calculate sum of weights
+    const sum = weights.reduce((a, b) => a + b, 0);
+    
+    // Get a random number between 0 and sum
+    const rand = Math.random() * sum;
+    
+    // Find the item that corresponds to this random number
+    let cumSum = 0;
+    for (let i = 0; i < items.length; i++) {
+        cumSum += weights[i];
+        if (rand < cumSum) {
+            return items[i];
+        }
+    }
+    
+    // Fallback
+    return items[0];
+}
+
+// Add these to the main processParticles function after the existing switch cases
+// Inside the processParticles function, add these case statements:
+/*
+case 'snow':
+    processSnow(x, y);
+    break;
+case 'salt':
+    processSalt(x, y);
+    break;
+case 'fuse':
+    processFuse(x, y);
+    break;
+case 'smoke':
+    processSmoke(x, y);
+    break;
+*/
+
+// Process acid gas - corrosive gas that rises and can dissolve materials
+function processAcidGas(x, y) {
+    const acidGas = grid[y][x];
+    
+    // Acid gas has a limited lifetime
+    acidGas.burnDuration = acidGas.burnDuration || 150; // Reuse burnDuration as lifetime
+    acidGas.burnDuration--;
+    
+    if (acidGas.burnDuration <= 0) {
+        grid[y][x] = null;
+        return;
+    }
+    
+    // Acid gas rises
+    if (y > 0 && Math.random() < GAS_RISE) {
+        const directions = [];
+        
+        // Prefer upward movement
+        if (!grid[y-1][x]) directions.push({ dx: 0, dy: -1 }); // Up
+        if (x > 0 && !grid[y-1][x-1]) directions.push({ dx: -1, dy: -1 }); // Up-left
+        if (x < gridWidth - 1 && !grid[y-1][x+1]) directions.push({ dx: 1, dy: -1 }); // Up-right
+        
+        // Sometimes move sideways
+        if (x > 0 && !grid[y][x-1]) directions.push({ dx: -1, dy: 0 }); // Left
+        if (x < gridWidth - 1 && !grid[y][x+1]) directions.push({ dx: 1, dy: 0 }); // Right
+        
+        if (directions.length > 0) {
+            const randomDir = directions[Math.floor(Math.random() * directions.length)];
+            const newX = x + randomDir.dx;
+            const newY = y + randomDir.dy;
+            
+            grid[newY][newX] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        }
+    }
+    
+    // Acid gas is corrosive
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+    ];
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY) || !grid[newY][newX]) continue;
+        
+        const neighbor = grid[newY][newX];
+        
+        // Acid gas doesn't affect certain materials
+        if (neighbor.type === 'acid' || neighbor.type === 'acid-gas' || neighbor.type === 'glass' || neighbor.type === 'glass-shard') {
+            continue;
+        }
+        
+        // Acid gas is less corrosive than liquid acid
+        const dissolveChance = getDurability(neighbor.type);
+        
+        if (Math.random() < dissolveChance * 0.2) { // 20% as effective as liquid acid
+            // Acid gas is consumed when it dissolves something
+            grid[y][x] = null;
+            
+            // Different materials have different reactions
+            if (neighbor.type === 'water') {
+                grid[newY][newX] = new Particle('acid', getDefaultColor('acid')); // Creates diluted acid
+            } else if (neighbor.type === 'metal' || neighbor.type === 'brick' || neighbor.type === 'stone') {
+                grid[newY][newX] = null; // Completely dissolves
+            } else if (neighbor.type === 'plant' || neighbor.type === 'wood') {
+                grid[newY][newX] = null; // Dissolves organic material
+            } else {
+                grid[newY][newX] = null; // Default is dissolution
+            }
+            
+            break;
+        }
+    }
+    
+    // Acid gas condenses back to acid when it cools
+    if (acidGas.temperature < 30 && Math.random() < 0.05) {
+        grid[y][x] = new Particle('acid', getDefaultColor('acid'));
+    }
+    
+    // Sometimes acid gas just dissipates
+    if (Math.random() < 0.005) {
+        grid[y][x] = null;
+    }
+}
+
+// Process crystal - grows slowly in certain conditions
+function processCrystal(x, y) {
+    const crystal = grid[y][x];
+    
+    // Crystals don't move
+    
+    // Crystals grow occasionally if they have space
+    if (Math.random() < 0.01) {
+        const directions = [
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 },  // right
+            { dx: 0, dy: -1 }, // up
+            { dx: 0, dy: 1 },  // down
+        ];
+        
+        // Shuffle directions for more natural growth
+        for (let i = directions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [directions[i], directions[j]] = [directions[j], directions[i]];
+        }
+        
+        // Try to grow in a random direction
+        for (const dir of directions) {
+            const newX = x + dir.dx;
+            const newY = y + dir.dy;
+            
+            if (!isInBounds(newX, newY)) continue;
+            
+            // Can only grow in empty space
+            if (!grid[newY][newX]) {
+                // Only grow if there's another crystal or certain materials nearby
+                let canGrow = false;
+                const neighborDirections = [
+                    { dx: -1, dy: 0 }, // left
+                    { dx: 1, dy: 0 },  // right
+                    { dx: 0, dy: -1 }, // up
+                    { dx: 0, dy: 1 },  // down
+                    { dx: -1, dy: -1 }, // up-left
+                    { dx: 1, dy: -1 },  // up-right
+                    { dx: -1, dy: 1 },  // down-left
+                    { dx: 1, dy: 1 }    // down-right
+                ];
+                
+                for (const nDir of neighborDirections) {
+                    const checkX = newX + nDir.dx;
+                    const checkY = newY + nDir.dy;
+                    
+                    if (!isInBounds(checkX, checkY) || !grid[checkY][checkX]) continue;
+                    
+                    const checkNeighbor = grid[checkY][checkX];
+                    if (checkNeighbor.type === 'crystal' || checkNeighbor.type === 'stone' || checkNeighbor.type === 'metal') {
+                        canGrow = true;
+                        break;
+                    }
+                }
+                
+                if (canGrow) {
+                    // Create a new crystal with slight color variation
+                    const newCrystal = new Particle('crystal', crystal.color);
+                    
+                    // Add slight color variation
+                    const colorShift = Math.floor(Math.random() * 30) - 15;
+                    newCrystal.color = adjustColor(crystal.color, colorShift, colorShift, colorShift);
+                    
+                    grid[newY][newX] = newCrystal;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Crystals reflect light (just a visual detail)
+    if (Math.random() < 0.01) {
+        // Slight color shimmer effect
+        const shimmerAmount = Math.floor(Math.random() * 20) - 10;
+        crystal.color = adjustColor(crystal.color, shimmerAmount, shimmerAmount, shimmerAmount);
+    }
+}
+
+// Process soil - can grow plants and retains water
+function processSoil(x, y) {
+    const soil = grid[y][x];
+    
+    // Soil behaves like sand
+    if (y < gridHeight - 1) {
+        // Move down if possible
+        if (!grid[y + 1][x]) {
+            grid[y + 1][x] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        }
+        // Try to slide down diagonally
+        else if (x > 0 && !grid[y + 1][x - 1]) {
+            grid[y + 1][x - 1] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        }
+        else if (x < gridWidth - 1 && !grid[y + 1][x + 1]) {
+            grid[y + 1][x + 1] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        }
+    }
+    
+    // Soil can absorb water
+    soil.waterContent = soil.waterContent || 0;
+    
+    // Check for water nearby to absorb
+    if (soil.waterContent < 5) {
+        const directions = [
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 },  // right
+            { dx: 0, dy: -1 }, // up
+            { dx: 0, dy: 1 },  // down
+        ];
+        
+        for (const dir of directions) {
+            const newX = x + dir.dx;
+            const newY = y + dir.dy;
+            
+            if (!isInBounds(newX, newY) || !grid[newY][newX]) continue;
+            
+            const neighbor = grid[newY][newX];
+            
+            // Absorb nearby water
+            if (neighbor.type === 'water' && Math.random() < 0.2) {
+                soil.waterContent++;
+                soil.color = adjustColor(getDefaultColor('soil'), -10, -10, Math.min(50, soil.waterContent * 10)); // Make soil darker when wet
+                grid[newY][newX] = null;
+                break;
+            }
+        }
+    }
+    
+    // Wet soil can spawn plants occasionally
+    if (soil.waterContent > 2 && y > 0 && !grid[y-1][x] && Math.random() < 0.005) {
+        grid[y-1][x] = new Particle('plant', getDefaultColor('plant'));
+        grid[y-1][x].flammable = true;
+        soil.waterContent--;
+    }
+    
+    // Soil slowly loses water over time
+    if (soil.waterContent > 0 && Math.random() < 0.001) {
+        soil.waterContent--;
+        if (soil.waterContent === 0) {
+            soil.color = getDefaultColor('soil');
+        }
+    }
+    
+    // Fertilizer enhances soil
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+    ];
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY) || !grid[newY][newX]) continue;
+        
+        const neighbor = grid[newY][newX];
+        
+        // Fertilizer improves soil
+        if (neighbor.type === 'fertilizer') {
+            soil.fertility = (soil.fertility || 0) + 1;
+            if (Math.random() < 0.1) {
+                grid[newY][newX] = null; // Fertilizer is consumed
+            }
+        }
+    }
+}
+
+// Process virus - spreads and transforms other materials
+function processVirus(x, y) {
+    const virus = grid[y][x];
+    
+    // Virus particles sometimes move randomly
+    if (Math.random() < 0.3) {
+        const directions = [
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 },  // right
+            { dx: 0, dy: -1 }, // up
+            { dx: 0, dy: 1 },  // down
+            { dx: -1, dy: -1 }, // up-left
+            { dx: 1, dy: -1 },  // up-right
+            { dx: -1, dy: 1 },  // down-left
+            { dx: 1, dy: 1 }    // down-right
+        ];
+        
+        const randomDir = directions[Math.floor(Math.random() * directions.length)];
+        const newX = x + randomDir.dx;
+        const newY = y + randomDir.dy;
+        
+        if (isInBounds(newX, newY) && !grid[newY][newX]) {
+            grid[newY][newX] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        }
+    }
+    
+    // Virus infects nearby particles
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+        { dx: -1, dy: -1 }, // up-left
+        { dx: 1, dy: -1 },  // up-right
+        { dx: -1, dy: 1 },  // down-left
+        { dx: 1, dy: 1 }    // down-right
+    ];
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY) || !grid[newY][newX]) continue;
+        
+        const neighbor = grid[newY][newX];
+        
+        // Virus can only infect organic materials
+        if ((neighbor.type === 'plant' || neighbor.type === 'wood' || neighbor.type === 'soil') && Math.random() < 0.1) {
+            // Create new virus particle
+            grid[newY][newX] = new Particle('virus', getDefaultColor('virus'));
+        }
+    }
+    
+    // Virus can be destroyed by extreme temperatures
+    if (virus.temperature > 80 || virus.temperature < -20) {
+        if (Math.random() < 0.2) {
+            grid[y][x] = null;
+        }
+    }
+    
+    // Virus has a limited lifespan
+    virus.burnDuration = virus.burnDuration || 300; // Reuse burnDuration as lifetime
+    virus.burnDuration--;
+    
+    if (virus.burnDuration <= 0) {
+        grid[y][x] = null;
+    }
+}
+
+// Replace the processParticles function with one that uses the ElementLoader
+function processParticles() {
+    // Only update particles every N frames for performance
+    if (frameCounter % 1 !== 0) return;
+    
+    // Reset processed state for all particles
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+            if (grid[y][x]) {
+                grid[y][x].processed = false;
+            }
+        }
+    }
+
+    // Process particles from bottom to top, left to right
+    for (let y = GRID_HEIGHT - 1; y >= 0; y--) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+            if (grid[y][x] && !grid[y][x].processed) {
+                // Process each particle and apply environmental effects
+                applyEnvironmentalEffects(x, y);
+                
+                // Use the ElementRegistry directly to process particles
+                const element = ElementRegistry.getElement(grid[y][x].type);
+                if (element && element.process) {
+                    element.process(x, y, grid, isInBounds);
+                } else {
+                    // Mark as processed if no handler exists
+                    grid[y][x].processed = true;
+                }
+            }
+        }
+    }
+}
+
+// Apply environmental effects based on active tools
+function applyEnvironmentalEffects(x, y) {
+    if (!grid[y][x]) return;
+    
+    const particle = grid[y][x];
+    
+    // Apply wind effect
+    if (currentEnvTool === 'wind' && Math.random() < 0.2) {
+        // Different materials have different wind resistance
+        let windChance = 0.1;
+        
+        // Adjust chance based on particle type
+        if (particle.type === 'smoke' || particle.type === 'steam' || particle.type === 'acid-gas') {
+            windChance = 0.4; // Gases are affected more
+        } else if (particle.type === 'fire' || particle.type === 'bubble' || particle.type === 'balloon') {
+            windChance = 0.3; // Light materials
+        } else if (particle.type === 'sand' || particle.type === 'salt' || particle.type === 'ash') {
+            windChance = 0.2; // Powders
+        } else if (particle.type === 'water' || particle.type === 'oil' || particle.type === 'acid') {
+            windChance = 0.15; // Liquids
+        } else if (particle.type === 'stone' || particle.type === 'metal' || particle.type === 'glass') {
+            windChance = 0; // Solid materials don't move with wind
+        }
+        
+        if (Math.random() < windChance) {
+            let dx = 0;
+            
+            // Determine wind direction
+            switch (windDirection) {
+                case 'right': dx = 1; break;
+                case 'left': dx = -1; break;
+                // Up and down handled by standard gravity
+            }
+            
+            const newX = x + dx;
+            
+            // Apply wind if the target cell is empty
+            if (dx !== 0 && isInBounds(newX, y) && !grid[y][newX]) {
+                grid[y][newX] = grid[y][x];
+                grid[y][x] = null;
+            }
+        }
+    }
+    
+    // Apply heat effect
+    if (currentEnvTool === 'heat' && Math.random() < 0.1) {
+        particle.temperature += 5;
+        
+        // Heat can cause various effects
+        if (particle.temperature > 100) {
+            // Water and other liquids may evaporate
+            if (particle.type === 'water') {
+                grid[y][x] = new Particle('steam', getDefaultColor('steam'));
+            } else if (particle.type === 'oil' && Math.random() < 0.1) {
+                grid[y][x] = new Particle('fire', getDefaultColor('fire'));
+            } else if (particle.type === 'acid') {
+                grid[y][x] = new Particle('acid-gas', getDefaultColor('acid-gas'));
+            }
+            
+            // Ice melts
+            if (particle.type === 'ice') {
+                grid[y][x] = new Particle('water', getDefaultColor('water'));
+            }
+            
+            // Snow melts
+            if (particle.type === 'snow') {
+                grid[y][x] = new Particle('water', getDefaultColor('water'));
+            }
+            
+            // Ignite flammable materials
+            if (particle.flammable && !particle.burning && Math.random() < 0.05) {
+                particle.burning = true;
+                particle.burnDuration = getBurnDuration(particle.type);
+            }
+        }
+    }
+    
+    // Apply cold effect
+    if (currentEnvTool === 'cold' && Math.random() < 0.1) {
+        particle.temperature -= 5;
+        
+        // Cold can cause various effects
+        if (particle.temperature < 0) {
+            // Water freezes
+            if (particle.type === 'water') {
+                grid[y][x] = new Particle('ice', getDefaultColor('ice'));
+            }
+            
+            // Steam condenses
+            if (particle.type === 'steam' && Math.random() < 0.1) {
+                grid[y][x] = new Particle('water', getDefaultColor('water'));
+            }
+            
+            // Fire extinguished
+            if (particle.type === 'fire' && Math.random() < 0.2) {
+                grid[y][x] = null;
+            }
+            
+            // Extinguish burning particles
+            if (particle.burning && Math.random() < 0.1) {
+                particle.burning = false;
+            }
+        }
+    }
+}
+
+// Make sure this function exists to handle importing simulation data
+function importSimulation(data) {
+    if (data && data.grid) {
+        deserializeGrid(data.grid);
+    }
+}
+
+// Add event listeners for UI elements when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Set up canvas
+    canvas = document.getElementById('sandbox');
+    if (!canvas) {
+        console.error('Canvas element not found!');
+        return;
+    }
+    
+    ctx = canvas.getContext('2d');
+    
+    // Initialize grid
+    resizeCanvas(); // This will set GRID_WIDTH and GRID_HEIGHT
+    initializeGrid();
+    
+    setupCanvasEvents();
+    
+    // Initialize the element system with the isInBounds function
+    ElementLoader.initialize(grid, { 
+        CELL_SIZE, 
+        GRID_WIDTH, 
+        GRID_HEIGHT,
+        isInBounds: isInBounds // Pass the isInBounds function
+    });
+    
+    loadFromLocalStorage(); // Try to load saved state
+    
+    // Start the animation loop
+    update();
+});
+
+// Process sand and similar falling powders
+function processSand(x, y) {
+    if (!grid[y][x] || grid[y][x].processed) return;
+    
+    const particle = grid[y][x];
+    particle.processed = true;
+    
+    // Try to move down
+    if (y < gridHeight - 1) {
+        // Move directly down if possible
+        if (!grid[y+1][x]) {
+            grid[y+1][x] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        }
+        
+        // Try to slide down diagonally
+        const diagX = Math.random() < 0.5 ? [x-1, x+1] : [x+1, x-1];
+        
+        for (const newX of diagX) {
+            if (isInBounds(newX, y+1) && !grid[y+1][newX]) {
+                grid[y+1][newX] = grid[y][x];
+                grid[y][x] = null;
+                return;
+            }
+        }
+    }
+}
+
+// Process fire particles
+function processFire(x, y) {
+    if (!grid[y][x] || grid[y][x].processed) return;
+    
+    const fire = grid[y][x];
+    fire.processed = true;
+    
+    // Decrease burn duration
+    fire.burnDuration = fire.burnDuration || 100; // Default burn duration
+    fire.burnDuration--;
+    
+    // Remove fire when it burns out
+    if (fire.burnDuration <= 0) {
+        if (Math.random() < 0.3) {
+            grid[y][x] = new Particle('smoke', getDefaultColor('smoke'));
+        } else {
+            grid[y][x] = null;
+        }
+        return;
+    }
+    
+    // Fire has a chance to rise
+    if (y > 0 && Math.random() < 0.3) {
+        if (!grid[y-1][x]) {
+            grid[y-1][x] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        } else {
+            // Try diagonal up
+            const directions = [
+                { dx: -1, dy: -1 }, // up-left
+                { dx: 1, dy: -1 }   // up-right
+            ];
+            
+            const randomDir = directions[Math.floor(Math.random() * directions.length)];
+            const newX = x + randomDir.dx;
+            const newY = y + randomDir.dy;
+            
+            if (isInBounds(newX, newY) && !grid[newY][newX]) {
+                grid[newY][newX] = grid[y][x];
+                grid[y][x] = null;
+                return;
+            }
+        }
+    }
+    
+    // Fire ignites nearby flammable materials
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+        { dx: -1, dy: -1 }, // up-left
+        { dx: 1, dy: -1 },  // up-right
+        { dx: -1, dy: 1 },  // down-left
+        { dx: 1, dy: 1 }    // down-right
+    ];
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY)) continue;
+        
+        const neighbor = grid[newY][newX];
+        if (!neighbor) continue;
+        
+        // Ignite flammable materials
+        if (neighbor.flammable && !neighbor.burning && Math.random() < 0.1) {
+            neighbor.burning = true;
+            neighbor.burnDuration = getBurnDuration(neighbor.type);
+        }
+    }
+}
+
+// Process steam particles
+function processSteam(x, y) {
+    if (!grid[y][x] || grid[y][x].processed) return;
+    
+    const steam = grid[y][x];
+    steam.processed = true;
+    
+    // Steam rises upward
+    if (y > 0) {
+        // Try to move directly up
+        if (!grid[y-1][x]) {
+            grid[y-1][x] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        }
+        
+        // Try to move diagonally up
+        const diagX = Math.random() < 0.5 ? [x-1, x+1] : [x+1, x-1];
+        
+        for (const newX of diagX) {
+            if (isInBounds(newX, y-1) && !grid[y-1][newX]) {
+                grid[y-1][newX] = grid[y][x];
+                grid[y][x] = null;
+                return;
+            }
+        }
+    }
+    
+    // Steam has a chance to condense back into water
+    if (steam.temperature < 100 && Math.random() < 0.01) {
+        grid[y][x] = new Particle('water', getDefaultColor('water'));
+    }
+    
+    // Steam has a limited lifetime
+    steam.burnDuration = steam.burnDuration || 200;
+    steam.burnDuration--;
+    
+    if (steam.burnDuration <= 0) {
+        grid[y][x] = null;
+    }
+}
+
+// Process water and similar liquids
+function processWater(x, y) {
+    if (!grid[y][x] || grid[y][x].processed) return;
+    
+    const particle = grid[y][x];
+    particle.processed = true;
+    
+    const type = particle.type;
+    const isViscous = type === 'glue' || type === 'napalm' || type === 'tar' || type === 'sludge';
+    
+    // How far liquids can spread horizontally
+    const maxSpread = isViscous ? 2 : 4; // Viscous liquids spread less
+    
+    // Chance for movement - viscous liquids move slower
+    const moveChance = isViscous ? 0.4 : 0.9;
+    
+    if (Math.random() > moveChance) return; // Skip this update for viscosity simulation
+    
+    // Add texture for viscous liquids
+    if (isViscous && !particle.textureVariation) {
+        particle.textureVariation = Math.floor(Math.random() * 3);
+    }
+    
+    // Check for nearby ice - water can freeze
+    if (type === 'water') {
+        let touchingIce = false;
+        const iceDirections = [
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 },  // right
+            { dx: 0, dy: -1 }, // up
+            { dx: 0, dy: 1 }   // down
+        ];
+        
+        for (const dir of iceDirections) {
+            const newX = x + dir.dx;
+            const newY = y + dir.dy;
+            
+            if (!isInBounds(newX, newY)) continue;
+            
+            const neighbor = grid[newY][newX];
+            if (neighbor && neighbor.type === 'ice') {
+                touchingIce = true;
+                break;
+            }
+        }
+        
+        // Water touching ice has a chance to freeze
+        if (touchingIce && Math.random() < 0.05) {
+            grid[y][x] = new Particle('ice', getDefaultColor('ice'));
+            return;
+        }
+    }
+    
+    // Try to move down
+    if (y < gridHeight - 1) {
+        if (!grid[y+1][x]) {
+            // Move down if empty below
+            grid[y+1][x] = grid[y][x];
+            grid[y][x] = null;
+            return;
+        } else {
+            // Try to move diagonally down
+            const diagX = [x-1, x+1];
+            const randomOrder = Math.random() < 0.5 ? diagX : [...diagX].reverse();
+            
+            for (const newX of randomOrder) {
+                if (isInBounds(newX, y+1) && !grid[y+1][newX]) {
+                    grid[y+1][newX] = grid[y][x];
+                    grid[y][x] = null;
+                    return;
+                }
+            }
+        }
+    }
+    
+    // If can't move down, try to spread horizontally
+    let spreadDirection = Math.random() < 0.5 ? -1 : 1;
+    
+    for (let spread = 1; spread <= maxSpread; spread++) {
+        const newX = x + (spreadDirection * spread);
+        
+        if (!isInBounds(newX, y)) break;
+        
+        if (!grid[y][newX]) {
+            grid[y][newX] = grid[y][x];
+            grid[y][x] = null;
+            break;
+        } else {
+            // Stop spreading if we hit an obstacle
+            break;
+        }
+    }
+}
+
+// Process lava particles
+function processLava(x, y) {
+    // Call the regular water processing for movement
+    processWater(x, y);
+    
+    // If the particle was moved, return early
+    if (!grid[y][x]) return;
+    
+    const lava = grid[y][x];
+    
+    // Lava slowly cools down over time
+    if (Math.random() < 0.001) {
+        lava.temperature -= 1;
+        
+        // When lava cools enough, it turns to stone
+        if (lava.temperature < 700 && Math.random() < 0.05) {
+            grid[y][x] = new Particle('stone', getDefaultColor('stone'));
+            return;
+        }
+    }
+    
+    // Lava interacts with nearby materials
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 },  // down
+    ];
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY)) continue;
+        
+        const neighbor = grid[newY][newX];
+        if (!neighbor) continue;
+        
+        // Special case: steel is resistant to lava
+        if (neighbor.type === 'steel') continue;
+        
+        // Special case: acid + lava = steam
+        if (neighbor.type === 'acid') {
+            grid[newY][newX] = null;
+            if (Math.random() < 0.5) {
+                if (isInBounds(newX, newY - 1) && !grid[newY - 1][newX]) {
+                    grid[newY - 1][newX] = new Particle('steam', getDefaultColor('steam'));
+                }
+            }
+            continue;
+        }
+        
+        // Lava melts materials gradually
+        const meltChance = neighbor.type === 'metal' ? 0.04 :
+                          neighbor.type === 'stone' || neighbor.type === 'brick' ? 0.05 :
+                          neighbor.type === 'glass' ? 0.1 :
+                          neighbor.type === 'dirt' ? 0.15 :
+                          neighbor.type === 'ash' ? 0.3 : 0.05;
+        
+        if (Math.random() < meltChance) {
+            // Different materials react differently
+            if (neighbor.type === 'water') {
+                grid[newY][newX] = new Particle('steam', getDefaultColor('steam'));
+            } else if (neighbor.type === 'ice') {
+                grid[newY][newX] = new Particle('water', getDefaultColor('water'));
+            } else if (neighbor.type === 'sand' || neighbor.type === 'salt') {
+                grid[newY][newX] = new Particle('glass', getDefaultColor('glass'));
+            } else if (neighbor.flammable && !neighbor.burning) {
+                // Flammable materials ignite
+                neighbor.burning = true;
+                neighbor.burnDuration = getBurnDuration(neighbor.type);
+            } else {
+                // Default behavior is to melt through, leaving empty space
+                grid[newY][newX] = null;
+            }
+        }
+    }
+    
+    // Lava can emit fire particles upward
+    if (y > 0 && !grid[y-1][x] && Math.random() < 0.05) {
+        grid[y-1][x] = new Particle('fire', getDefaultColor('fire'));
+        grid[y-1][x].burnDuration = 15; // Short duration
+    }
+}
+
+// Process plant particles
+function processPlant(x, y) {
+    if (!grid[y][x] || grid[y][x].processed) return;
+    
+    const plant = grid[y][x];
+    plant.processed = true;
+    
+    // Plants need water to grow
+    let hasWaterNearby = false;
+    const waterRadius = 3;
+    
+    // Check for water within a radius
+    for (let dy = -waterRadius; dy <= waterRadius; dy++) {
+        for (let dx = -waterRadius; dx <= waterRadius; dx++) {
+            const newX = x + dx;
+            const newY = y + dy;
+            
+            if (!isInBounds(newX, newY)) continue;
+            
+            const neighbor = grid[newY][newX];
+            if (neighbor && neighbor.type === 'water') {
+                hasWaterNearby = true;
+                break;
+            }
+        }
+        if (hasWaterNearby) break;
+    }
+    
+    // Plants only grow if there's water nearby
+    if (hasWaterNearby && Math.random() < 0.15) {
+        // Try to grow upward or diagonally up
+        const growthDirections = [
+            { dx: 0, dy: -1 },  // up
+            { dx: -1, dy: -1 }, // up-left
+            { dx: 1, dy: -1 }   // up-right
+        ];
+        
+        // Shuffle directions for more natural growth
+        for (let i = growthDirections.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [growthDirections[i], growthDirections[j]] = [growthDirections[j], growthDirections[i]];
+        }
+        
+        // Try to grow in one of the directions
+        for (const dir of growthDirections) {
+            const newX = x + dir.dx;
+            const newY = y + dir.dy;
+            
+            if (isInBounds(newX, newY) && !grid[newY][newX]) {
+                grid[newY][newX] = new Particle('plant', getDefaultColor('plant'));
+                grid[newY][newX].flammable = true;
+                break;
+            }
+        }
+    }
+    
+    // If plant is burning, let it spread fire rapidly
+    if (plant.burning) {
+        // Decrease burn duration
+        plant.burnDuration--;
+        
+        // When fully burned, plant disappears (doesn't turn to ash)
+        if (plant.burnDuration <= 0) {
+            grid[y][x] = null;
+            return;
+        }
+        
+        // Create fire particles above the burning plant
+        if (y > 0 && !grid[y-1][x] && Math.random() < 0.3) {
+            grid[y-1][x] = new Particle('fire', getDefaultColor('fire'));
+            grid[y-1][x].burnDuration = 20;
+        }
+        
+        // Plants spread fire to other plants very easily (90% chance)
+        const directions = [
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 },  // right
+            { dx: 0, dy: -1 }, // up
+            { dx: 0, dy: 1 },  // down
+            { dx: -1, dy: -1 }, // up-left
+            { dx: 1, dy: -1 },  // up-right
+            { dx: -1, dy: 1 },  // down-left
+            { dx: 1, dy: 1 }    // down-right
+        ];
+        
+        for (const dir of directions) {
+            const newX = x + dir.dx;
+            const newY = y + dir.dy;
+            
+            if (!isInBounds(newX, newY)) continue;
+            
+            const neighbor = grid[newY][newX];
+            if (neighbor && neighbor.type === 'plant' && !neighbor.burning && Math.random() < 0.9) {
+                neighbor.burning = true;
+                neighbor.burnDuration = getBurnDuration('plant');
+            }
+        }
+    }
+}
+
+// Process faucet particles (generates water)
+function processFaucet(x, y) {
+    if (!grid[y][x] || grid[y][x].processed) return;
+    
+    const faucet = grid[y][x];
+    faucet.processed = true;
+    
+    // Faucets generate water below them
+    if (y < gridHeight - 1 && !grid[y+1][x] && Math.random() < 0.2) {
+        grid[y+1][x] = new Particle('water', getDefaultColor('water'));
+    }
+}
+
+// Process ice particles
+function processIce(x, y) {
+    if (!grid[y][x] || grid[y][x].processed) return;
+    
+    const ice = grid[y][x];
+    ice.processed = true;
+    
+    // Ice stays in place, but can melt
+    if (ice.temperature > 0 && Math.random() < 0.1) {
+        grid[y][x] = new Particle('water', getDefaultColor('water'));
+        return;
+    }
+    
+    // Ice can freeze nearby water
+    const directions = [
+        { dx: -1, dy: 0 }, // left
+        { dx: 1, dy: 0 },  // right
+        { dx: 0, dy: -1 }, // up
+        { dx: 0, dy: 1 }   // down
+    ];
+    
+    for (const dir of directions) {
+        const newX = x + dir.dx;
+        const newY = y + dir.dy;
+        
+        if (!isInBounds(newX, newY)) continue;
+        
+        const neighbor = grid[newY][newX];
+        
+        // Freeze adjacent water with a small chance
+        if (neighbor && neighbor.type === 'water' && Math.random() < 0.05) {
+            grid[newY][newX] = new Particle('ice', getDefaultColor('ice'));
+        }
+    }
+}
+
+// Render functions for special elements
+function renderBrick(x, y, baseColor) {
+    // Draw brick pattern
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    
+    // Add brick pattern with darker lines
+    ctx.fillStyle = adjustColor(baseColor, -30, -30, -30);
+    
+    // Horizontal mortar line (33% down)
+    if (y % 2 === 0) {
+        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE + CELL_SIZE / 3, CELL_SIZE, CELL_SIZE / 6);
+    }
+    
+    // Vertical mortar line (every other brick)
+    if ((x + Math.floor(y / 2)) % 2 === 0) {
+        ctx.fillRect(x * CELL_SIZE + CELL_SIZE / 2, y * CELL_SIZE, CELL_SIZE / 6, CELL_SIZE);
+    }
+}
+
+function renderWood(x, y, baseColor, isBurning) {
+    // Draw base wood
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    
+    // Add wood grain with darker lines
+    ctx.fillStyle = adjustColor(baseColor, -20, -20, -20);
+    
+    // Draw grain pattern
+    const grainOffset = (x * 7 + y * 3) % CELL_SIZE;
+    ctx.fillRect(x * CELL_SIZE + grainOffset / 3, y * CELL_SIZE, CELL_SIZE / 10, CELL_SIZE);
+    ctx.fillRect(x * CELL_SIZE + grainOffset * 2/3, y * CELL_SIZE, CELL_SIZE / 12, CELL_SIZE);
+    
+    // Add burning overlay if burning
+    if (isBurning) {
+        renderBurningEffect(x, y);
+    }
+}
+
+function renderTorch(x, y, baseColor) {
+    // Draw torch handle
+    ctx.fillStyle = getDefaultColor('wood');
+    ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE + CELL_SIZE / 2, CELL_SIZE, CELL_SIZE / 2);
+    
+    // Draw flame
+    ctx.fillStyle = getDefaultColor('fire');
+    ctx.beginPath();
+    ctx.arc(x * CELL_SIZE + CELL_SIZE / 2, y * CELL_SIZE + CELL_SIZE / 3, CELL_SIZE / 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add highlight to flame
+    ctx.fillStyle = '#FFFF00';
+    ctx.beginPath();
+    ctx.arc(x * CELL_SIZE + CELL_SIZE / 2, y * CELL_SIZE + CELL_SIZE / 3, CELL_SIZE / 4, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function renderIce(x, y, baseColor) {
+    // Draw ice
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    
+    // Add ice highlights
+    ctx.fillStyle = '#FFFFFF';
+    ctx.globalAlpha = 0.3;
+    
+    // Draw random highlight spots
+    const spotCount = 2;
+    for (let i = 0; i < spotCount; i++) {
+        const spotX = x * CELL_SIZE + Math.random() * CELL_SIZE * 0.7;
+        const spotY = y * CELL_SIZE + Math.random() * CELL_SIZE * 0.7;
+        const spotSize = CELL_SIZE * 0.3;
+        
+        ctx.beginPath();
+        ctx.arc(spotX, spotY, spotSize, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    ctx.globalAlpha = 1.0;
+}
+
+function renderFire(x, y, baseColor) {
+    // Randomize fire appearance for flickering effect
+    const flicker = Math.random() * 0.3;
+    
+    // Draw fire with gradient
+    const gradient = ctx.createRadialGradient(
+        x * CELL_SIZE + CELL_SIZE / 2, y * CELL_SIZE + CELL_SIZE / 2, 0,
+        x * CELL_SIZE + CELL_SIZE / 2, y * CELL_SIZE + CELL_SIZE / 2, CELL_SIZE / 2
+    );
+    
+    gradient.addColorStop(0, '#FFFF00'); // Yellow center
+    gradient.addColorStop(0.5, '#FF4500'); // Orange-red
+    gradient.addColorStop(1, 'rgba(255, 69, 0, ' + (0.5 - flicker) + ')'); // Semi-transparent outer
+    
+    ctx.fillStyle = gradient;
+    
+    // Draw slightly randomized shape for realistic fire
+    ctx.beginPath();
+    ctx.arc(x * CELL_SIZE + CELL_SIZE / 2, 
+            y * CELL_SIZE + CELL_SIZE / 2, 
+            CELL_SIZE / 2 * (1 + flicker), 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function renderBurningEffect(x, y) {
+    // Add a burning overlay to the particle
+    ctx.fillStyle = 'rgba(255, 69, 0, 0.5)';
+    ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+    
+    // Add some sparks
+    ctx.fillStyle = '#FFFF00';
+    const sparkCount = 2;
+    for (let i = 0; i < sparkCount; i++) {
+        const sparkX = x * CELL_SIZE + Math.random() * CELL_SIZE;
+        const sparkY = y * CELL_SIZE + Math.random() * CELL_SIZE / 2;
+        const sparkSize = CELL_SIZE / 6;
+        
+        ctx.beginPath();
+        ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+// Process torch particle
+function processTorch(x, y) {
+    if (!grid[y][x] || grid[y][x].processed) return;
+    
+    const particle = grid[y][x];
+    particle.processed = true;
+    
+    // Torches should be static but create fire above them
+    if (y > 0 && !grid[y-1][x] && Math.random() < 0.2) {
+        grid[y-1][x] = new Particle('fire', getDefaultColor('fire'));
+        grid[y-1][x].burnDuration = 30; // Short duration
+    }
+}
+
+// Render the simulation
+function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Render each particle
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+            const particle = grid[y][x];
+            if (particle) {
+                // Try to use custom rendering from ElementLoader
+                if (!ElementLoader.renderParticle(ctx, x, y, particle, CELL_SIZE)) {
+                    // Fall back to default rendering if no custom render function
+                    ctx.fillStyle = particle.color;
+                    ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                }
+            }
+        }
+    }
+    
+    // Draw brush preview
+    if (isMouseDown && selectedElement && mouseX >= 0 && mouseY >= 0) {
+        const gridX = Math.floor(mouseX / CELL_SIZE);
+        const gridY = Math.floor(mouseY / CELL_SIZE);
+        
+        ctx.fillStyle = getElementColor(selectedElement);
+        ctx.globalAlpha = 0.5;
+        
+        // Draw brush preview based on brush size
+        for (let y = -Math.floor(brushSize/2); y <= Math.floor(brushSize/2); y++) {
+            for (let x = -Math.floor(brushSize/2); x <= Math.floor(brushSize/2); x++) {
+                const previewX = gridX + x;
+                const previewY = gridY + y;
+                
+                if (isInBounds(previewX, previewY)) {
+                    ctx.fillRect(previewX * CELL_SIZE, previewY * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                }
+            }
+        }
+        
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // Update FPS counter
+    updateFpsCounter();
+    
+    // Update particle count
+    updateParticleCount();
+}
+
+// Update FPS counter
+function updateFpsCounter() {
+    const now = performance.now();
+    const elapsed = now - (lastFpsUpdate || now);
+    const fps = Math.round(1000 / (elapsed / 300));
+    
+    const fpsCounter = document.getElementById('fps-counter');
+    if (fpsCounter) {
+        fpsCounter.textContent = `FPS: ${fps}`;
+    }
+    
+    lastFpsUpdate = now;
+}
+
+// Update particle count
+function updateParticleCount() {
+    let count = 0;
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+            if (grid[y][x]) count++;
+        }
+    }
+    
+    const particleCounter = document.getElementById('particle-counter');
+    if (particleCounter) {
+        particleCounter.textContent = `Particles: ${count}`;
+    }
+}
+
+// Replace initializeElements to use ElementRegistry
+function initializeElements() {
+    // Setup element buttons using registered elements
+    const elementNames = ElementRegistry.getElementNames();
+    const elementContainer = document.getElementById('element-container');
+    
+    // Create a button for each element
+    elementNames.forEach(name => {
+        const element = ElementRegistry.getElement(name);
+        const button = document.createElement('button');
+        button.className = 'element-btn';
+        button.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        button.style.backgroundColor = element.defaultColor || '#CCCCCC';
+        
+        // Set text color based on background brightness
+        const rgb = hexToRgb(element.defaultColor || '#CCCCCC');
+        const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+        button.style.color = brightness > 128 ? 'black' : 'white';
+        
+        button.addEventListener('click', () => {
+            selectedElement = name;
+            updateSelectedElementUI();
+        });
+        
+        elementContainer.appendChild(button);
+    });
+    
+    // Set default selected element
+    if (elementNames.length > 0) {
+        selectedElement = elementNames[0];
+        updateSelectedElementUI();
+    }
+}
+
+// Helper function to convert hex to RGB
+function hexToRgb(hex) {
+    // Remove the hash if it exists
+    hex = hex.replace(/^#/, '');
+    
+    // Parse the hex values
+    const bigint = parseInt(hex, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    
+    return { r, g, b };
+}
+
+// Replace getElementColor function
+function getElementColor(type) {
+    const element = ElementRegistry.getElement(type);
+    return element ? element.defaultColor : '#FFFFFF';
+}
+
+// Apply cold effect to nearby particles
+function applyCold(x, y, strength) {
+    // ... existing code ...
+}
+
+// Replace the duplicate drawWithBrush function with a helper function for environmental tools
+function applyBrushElement(x, y) {
+    // If an environmental tool is active, apply it instead
+    if (currentEnvTool) {
+        applyEnvironmentalEffect(x, y, brushSize);
+        return;
+    }
+    
+    // Calculate the center grid position
+    const centerX = Math.floor(x);
+    const centerY = Math.floor(y);
+    
+    if (!isInBounds(centerX, centerY)) return;
+    
+    // Draw in a circular area around the center
+    for (let offsetY = -Math.floor(brushSize / 2); offsetY <= Math.floor(brushSize / 2); offsetY++) {
+        for (let offsetX = -Math.floor(brushSize / 2); offsetX <= Math.floor(brushSize / 2); offsetX++) {
+            const newX = centerX + offsetX;
+            const newY = centerY + offsetY;
+            
+            if (!isInBounds(newX, newY)) continue;
+            
+            // Check if within brush radius for circular brush
+            if (Math.sqrt(offsetX*offsetX + offsetY*offsetY) > brushSize/2) continue;
+            
+            // Skip if not in override mode and there's already a particle
+            if (!overrideMode && grid[newY][newX] !== null) {
+                continue;
+            }
+            
+            // Handle eraser
+            if (currentElement === 'eraser') {
+                grid[newY][newX] = null;
+                continue;
+            }
+            
+            // Create the particle using ElementRegistry
+            const particle = ElementRegistry.createParticle(currentElement);
+            if (particle) {
+                grid[newY][newX] = particle;
+            }
+        }
+    }
+    
+    // Schedule autosave after drawing
+    scheduleAutosave();
+}
+
+// Draw a line between two points using linear interpolation
+function interpolateLine(x1, y1, x2, y2) {
+    // Calculate the distance between the points
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // The number of points to draw
+    const steps = Math.max(Math.ceil(distance * 2), 1);
+    
+    // Draw points along the line
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const x = x1 + dx * t;
+        const y = y1 + dy * t;
+        
+        // Draw at this interpolated position
+        applyBrushElement(x, y);
+    }
+}
+
+// Legacy drawing function - renamed to avoid conflict
+function legacyDrawWithBrush(x, y) {
+    // If an environmental tool is active, apply it instead
+    if (currentEnvTool) {
+        applyEnvironmentalEffect(x, y, brushSize);
+        return;
+    }
+    
+    // Calculate the center grid position
+    const centerX = Math.floor(x);
+    const centerY = Math.floor(y);
+    
+    if (!isInBounds(centerX, centerY)) return;
+    
+    // Draw in a circular area around the center
+    for (let offsetY = -Math.floor(brushSize / 2); offsetY <= Math.floor(brushSize / 2); offsetY++) {
+        for (let offsetX = -Math.floor(brushSize / 2); offsetX <= Math.floor(brushSize / 2); offsetX++) {
+            const newX = centerX + offsetX;
+            const newY = centerY + offsetY;
+            
+            if (!isInBounds(newX, newY)) continue;
+            
+            // Check if within brush radius for circular brush
+            if (Math.sqrt(offsetX*offsetX + offsetY*offsetY) > brushSize/2) continue;
+            
+            createParticle(newX, newY, currentElement);
+        }
+    }
+    
+    // Schedule autosave after drawing
+    scheduleAutosave();
+}
+
+
+

@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElementalBox - Particle Sandbox</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        
+        #app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        #toolbar {
+            width: 280px;
+            height: 100vh;
+            overflow-y: auto;
+            background-color: #1e1e1e;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            border-right: 1px solid #333;
+        }
+        
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #sandbox {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+        }
+        
+        .element-btn {
+            width: 32px;
+            height: 32px;
+            margin: 4px;
+            border: 2px solid #444;
+            border-radius: 4px;
+            background-color: #333;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        
+        .element-btn:hover {
+            transform: scale(1.1);
+            border-color: #666;
+        }
+        
+        .element-btn.selected {
+            border-color: #00a8ff;
+            box-shadow: 0 0 5px rgba(0, 168, 255, 0.7);
+        }
+        
+        .element-group {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+        
+        .element-group-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #00a8ff;
+            clear: both;
+            padding-top: 5px;
+        }
+        
+        .element-grid {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        
+        .brush-controls {
+            margin: 10px 0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .brush-size-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .brush-btn {
+            padding: 4px 8px;
+            margin: 0 2px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background-color: #333;
+            color: #e0e0e0;
+            cursor: pointer;
+        }
+        
+        .brush-btn.selected {
+            background-color: #00a8ff;
+            border-color: #0077cc;
+            color: white;
+        }
+        
+        #override-container {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        #override-toggle {
+            margin-right: 10px;
+        }
+        
+        .top-controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+            gap: 5px;
+        }
+        
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 5px;
+        }
+        
+        .element-btn:hover .tooltip {
+            display: block;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .action-btn {
+            padding: 8px 12px;
+            margin: 4px;
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 12px;
+            min-width: 60px;
+            flex-grow: 1;
+        }
+        
+        .action-btn:hover {
+            background-color: #3a3a3a;
+        }
+        
+        .action-btn.primary {
+            background-color: #00a8ff;
+            color: white;
+            border-color: #0077cc;
+        }
+        
+        .action-btn.primary:hover {
+            background-color: #0077cc;
+        }
+        
+        .action-btn.warning {
+            background-color: #ff4136;
+            color: white;
+            border-color: #dc352c;
+        }
+        
+        .action-btn.warning:hover {
+            background-color: #dc352c;
+        }
+        
+        .env-tool-btn {
+            padding: 8px;
+            margin: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+        
+        .env-tool-btn.wind {
+            background-color: #7fdbff;
+            color: #000;
+        }
+        
+        .env-tool-btn.heat {
+            background-color: #ff4136;
+            color: #fff;
+        }
+        
+        .env-tool-btn.cold {
+            background-color: #0074d9;
+            color: #fff;
+        }
+        
+        .env-tool-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .env-tools {
+            display: flex;
+            justify-content: space-around;
+            margin: 10px 0;
+        }
+        
+        #notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+            transition: opacity 0.3s;
+        }
+        
+        .file-input-container {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        
+        .file-input-container input[type=file] {
+            position: absolute;
+            opacity: 0;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        /* Dark mode toggle */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            margin-top: auto;
+            padding: 10px 0;
+            border-top: 1px solid #333;
+            justify-content: space-between;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #444;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: #00a8ff;
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .modal-content {
+            background-color: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #00a8ff;
+        }
+        
+        .modal-body {
+            margin-bottom: 20px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        .modal-btn {
+            padding: 6px 12px;
+            margin-left: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        
+        .modal-btn.cancel {
+            background-color: #444;
+            color: #e0e0e0;
+        }
+        
+        .modal-btn.confirm {
+            background-color: #ff4136;
+            color: white;
+        }
+        
+        .modal-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #333;
+            color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .notification.info {
+            background-color: #3498db;
+        }
+        
+        .notification.error {
+            background-color: #e74c3c;
+        }
+        
+        .notification.success {
+            background-color: #2ecc71;
+        }
+        
+        /* Reset modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .modal-buttons {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        /* Environmental tool active state */
+        .env-tool.active {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        /* Tool buttons hover effect */
+        .toolbar-btn:hover, .brush-btn:hover, .env-tool:hover, .element-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Hidden file input */
+        #import-file {
+            display: none;
+        }
+        
+        /* Tooltip styles */
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 120px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Light mode styles */
+        body.light-mode {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        
+        body.light-mode #toolbar {
+            background-color: #e0e0e0;
+            border-right: 1px solid #ccc;
+        }
+        
+        body.light-mode .element-btn {
+            border-color: #ccc;
+            background-color: #f5f5f5;
+        }
+        
+        body.light-mode .element-group-title {
+            color: #0066cc;
+        }
+        
+        body.light-mode .element-group {
+            border-bottom: 1px solid #ccc;
+        }
+        
+        body.light-mode .brush-btn, 
+        body.light-mode .action-btn {
+            background-color: #e6e6e6;
+            border-color: #ccc;
+            color: #333;
+        }
+        
+        body.light-mode .modal-content {
+            background-color: #f5f5f5;
+            color: #333;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        body.light-mode #sandbox {
+            background-color: #fff;
+        }
+        
+        /* Added Status Bar Style */
+        #status-bar {
+            padding: 5px 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #333;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            color: #aaa;
+        }
+        
+        /* Style for the dynamically loaded element buttons container */
+        #element-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px; /* Add some spacing between buttons */
+            margin-bottom: 15px;
+        }
+        
+        /* Adjust style for dynamically created buttons if needed */
+        .element-button {
+             width: 30px; /* Adjust size as needed */
+             height: 30px;
+             border: 1px solid #444;
+             border-radius: 4px;
+             cursor: pointer;
+             display: inline-block; /* Ensure buttons flow well */
+             position: relative; /* For tooltips if added later */
+             transition: transform 0.1s ease;
+        }
+        
+        .element-button:hover {
+            transform: scale(1.1);
+            border-color: #666;
+        }
+        
+        .element-button.active {
+            border: 2px solid #00a8ff;
+            box-shadow: 0 0 5px rgba(0, 168, 255, 0.7);
+        }
+        
+        /* Light mode status bar */
+        body.light-mode #status-bar {
+            border-bottom: 1px solid #ccc;
+            color: #555;
+        }
+        
+        /* Element categories layout */
+        .element-category {
+            margin-bottom: 15px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            overflow: hidden;
+            background-color: #333;
+        }
+        
+        .category-heading {
+            margin: 0;
+            padding: 5px 10px;
+            background-color: #444;
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .category-elements {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 5px;
+        }
+        
+        /* Element buttons with labels */
+        .element-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 3px;
+            padding: 3px;
+            border: 1px solid #666;
+            border-radius: 5px;
+            background-color: #333;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 60px;
+            height: 60px;
+        }
+        
+        .element-button:hover {
+            background-color: #444;
+            transform: scale(1.05);
+        }
+        
+        .element-button.active {
+            border: 2px solid #fff;
+            background-color: #555;
+        }
+        
+        .element-color {
+            width: 40px;
+            height: 40px;
+            border-radius: 5px;
+            margin-bottom: 3px;
+        }
+        
+        .element-name {
+            font-size: 10px;
+            color: #fff;
+            text-align: center;
+            max-width: 55px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* Environmental tools section */
+        .environmental-tools {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            padding: 5px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background-color: #333;
+        }
+        
+        /* Environmental tools styling */
+        .tools-container {
+            margin-bottom: 15px;
+        }
+        
+        .environmental-tools {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 5px;
+            padding: 5px;
+            border: 1px solid #444;
+            border-radius: 5px;
+            background-color: #333;
+        }
+        
+        .env-tool-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 5px;
+            margin: 0 5px;
+            border: 1px solid #666;
+            border-radius: 5px;
+            background-color: #333;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 60px;
+            height: 70px;
+            position: relative;
+        }
+        
+        .env-tool-button:hover {
+            background-color: #444;
+            transform: scale(1.05);
+        }
+        
+        .env-tool-button.active {
+            border: 2px solid #fff;
+            background-color: #555;
+        }
+        
+        .tool-icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .tool-name {
+            font-size: 12px;
+            text-align: center;
+        }
+        
+        .wind-direction {
+            position: absolute;
+            bottom: 2px;
+            font-size: 14px;
+            color: #ff6b6b;
+        }
+        
+        .wind-direction.right { transform: rotate(0deg); }
+        .wind-direction.down { transform: rotate(90deg); }
+        .wind-direction.left { transform: rotate(180deg); }
+        .wind-direction.up { transform: rotate(270deg); }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <div id="toolbar">
+            <div class="top-controls">
+                <button id="pause-btn" class="action-btn" title="Pause/Resume simulation">Pause</button>
+                <button id="export-btn" class="action-btn" title="Export simulation to JSON file">Export</button>
+                <button id="import-btn" class="action-btn" title="Import simulation from JSON file">Import</button>
+                <button id="screenshot-btn" class="action-btn" title="Save canvas as PNG image">Screenshot</button>
+                <button id="reset-btn" class="action-btn warning" title="Clear the sandbox">Reset</button>
+                <input type="file" id="import-file" accept=".json" style="display:none">
+            </div>
+            
+            <!-- Added Status Bar -->
+            <div id="status-bar">
+                <span id="fps-counter">FPS: --</span>
+                <span id="particle-count">Particles: 0</span>
+            </div>
+            
+            <div class="brush-controls">
+                <div class="brush-size-container">
+                    <label for="brush-size">Brush:</label>
+                    <input type="range" id="brush-size" name="brush-size" min="1" max="20" value="6" style="flex-grow: 1; margin: 0 10px;">
+                    <span id="brush-size-value">6</span>
+                </div>
+                <div id="override-container">
+                    <input type="checkbox" id="override-toggle">
+                    <label for="override-toggle">Override Elements</label>
+                </div>
+                <div id="no-boundaries-container">
+                    <input type="checkbox" id="no-boundaries-toggle">
+                    <label for="no-boundaries-toggle">Remove Floor/Ceiling</label>
+                </div>
+            </div>
+            
+            <!-- Add this right before the element-buttons div -->
+            <div class="tools-container">
+                <h3 class="category-heading">Environmental Tools</h3>
+                <div id="environmental-tools" class="environmental-tools">
+                    <!-- Wind tool -->
+                    <button id="wind-tool" class="env-tool-button" data-tool="wind" title="Wind - Push particles in direction of mouse movement">
+                        <div class="tool-icon">🌬️</div>
+                        <div class="tool-name">Wind</div>
+                    </button>
+                    
+                    <!-- Heat tool -->
+                    <button id="heat-tool" class="env-tool-button" data-tool="heat" title="Heat - Increases temperature in an area">
+                        <div class="tool-icon">🔥</div>
+                        <div class="tool-name">Heat</div>
+                    </button>
+                    
+                    <!-- Cold tool -->
+                    <button id="cold-tool" class="env-tool-button" data-tool="cold" title="Cold - Decreases temperature in an area">
+                        <div class="tool-icon">❄️</div>
+                        <div class="tool-name">Cold</div>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Container for dynamically loaded element buttons -->
+            <div id="element-buttons"></div>
+            
+            <div class="theme-toggle">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="dark-mode-toggle" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <span>Dark Mode</span>
+            </div>
+        </div>
+        
+        <div id="canvas-container">
+            <canvas id="sandbox"></canvas>
+        </div>
+    </div>
+    
+    <!-- Reset Confirmation Modal -->
+    <div id="reset-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">Reset Sandbox</div>
+            <div class="modal-body">
+                <p>Are you sure you want to clear the entire sandbox?</p>
+                <p style="margin-top: 10px;">
+                    <input type="checkbox" id="clear-storage-checkbox">
+                    <label for="clear-storage-checkbox">Also clear saved data</label>
+                </p>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" id="reset-cancel">Cancel</button>
+                <button class="modal-btn confirm" id="reset-confirm">Reset</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification -->
+    <div id="notification"></div>
+    
+    <!-- Load element scripts first -->
+    <script src="scripts/element-registry.js"></script>
+    <script src="scripts/element-loader.js"></script>
+    
+    <!-- Load all element modules -->
+    <script src="scripts/elements/sand.js"></script>
+    <script src="scripts/elements/water.js"></script>
+    <script src="scripts/elements/smoke.js"></script>
+    <script src="scripts/elements/fire.js"></script>
+    <script src="scripts/elements/lava.js"></script>
+    <script src="scripts/elements/ice.js"></script>
+    <script src="scripts/elements/plant.js"></script>
+    <script src="scripts/elements/metal.js"></script>
+    <script src="scripts/elements/steel.js"></script>
+    <script src="scripts/elements/oil.js"></script>
+    <script src="scripts/elements/acid.js"></script>
+    <script src="scripts/elements/glass.js"></script>
+    <script src="scripts/elements/glass-shard.js"></script>
+    <script src="scripts/elements/static-charge.js"></script>
+    <script src="scripts/elements/stone.js"></script>
+    <script src="scripts/elements/brick.js"></script>
+    <script src="scripts/elements/wood.js"></script>
+    <script src="scripts/elements/resin.js"></script>
+    <script src="scripts/elements/crystal.js"></script>
+    <script src="scripts/elements/steam.js"></script>
+    <script src="scripts/elements/wind.js"></script>
+    <script src="scripts/elements/heat.js"></script>
+    <script src="scripts/elements/cold.js"></script>
+    <script src="scripts/elements/salt.js"></script>
+    <script src="scripts/elements/snow.js"></script>
+    <script src="scripts/elements/gunpowder.js"></script>
+    <script src="scripts/elements/c4.js"></script>
+    <script src="scripts/elements/torch.js"></script>
+    <script src="scripts/elements/glue.js"></script>
+    <script src="scripts/elements/napalm.js"></script>
+    <script src="scripts/elements/tar.js"></script>
+    <script src="scripts/elements/sludge.js"></script>
+    <script src="scripts/elements/explosive-powder.js"></script>
+    <script src="scripts/elements/dynamite.js"></script>
+    <script src="scripts/elements/fertilizer.js"></script>
+    <script src="scripts/elements/bacteria.js"></script>
+    <script src="scripts/elements/fuse.js"></script>
+    <script src="scripts/elements/wire.js"></script>
+    <script src="scripts/elements/switch.js"></script>
+    <script src="scripts/elements/bulb.js"></script>
+    <script src="scripts/elements/battery.js"></script>
+    <script src="scripts/elements/faucet.js"></script>
+    <script src="scripts/elements/eraser.js"></script>
+    
+    <!-- Load main.js last to ensure all other scripts are loaded first -->
+    <script src="main.js"></script>
+    <script>
+        // Add dark mode toggle functionality
+        document.getElementById('dark-mode-toggle').addEventListener('change', function() {
+            if (this.checked) {
+                document.body.classList.remove('light-mode');
+            } else {
+                document.body.classList.add('light-mode');
+            }
+        });
+    </script>
+</body>
+</html>
