@@ -271,18 +271,37 @@ class ElementRegistry {
         
         // Get the no-boundaries mode from window
         const noBoundariesMode = window.noBoundariesMode || false;
-        console.log(`ProcessParticles running, noBoundariesMode=${noBoundariesMode}`);
+        
+        // Cache grid dimensions for performance
+        const gridHeight = this.grid.length;
+        const gridWidth = this.grid[0].length;
         
         // Process each particle in the grid (from bottom to top for gravity-like simulation)
-        for (let y = this.grid.length - 1; y >= 0; y--) {
+        for (let y = gridHeight - 1; y >= 0; y--) {
             // Left to right for even rows, right to left for odd rows to avoid bias
+            // Using direct property access instead of method calls in inner loop for performance
+            const gridRow = this.grid[y];
             if (y % 2 === 0) {
-                for (let x = 0; x < this.grid[y].length; x++) {
-                    this.processParticleAt(x, y, isInBounds);
+                for (let x = 0; x < gridWidth; x++) {
+                    const particle = gridRow[x];
+                    if (particle && !particle.processed) {
+                        const element = this.elements[particle.type];
+                        if (element && element.process) {
+                            element.process(x, y, this.grid, isInBounds);
+                        }
+                        particle.processed = true;
+                    }
                 }
             } else {
-                for (let x = this.grid[y].length - 1; x >= 0; x--) {
-                    this.processParticleAt(x, y, isInBounds);
+                for (let x = gridWidth - 1; x >= 0; x--) {
+                    const particle = gridRow[x];
+                    if (particle && !particle.processed) {
+                        const element = this.elements[particle.type];
+                        if (element && element.process) {
+                            element.process(x, y, this.grid, isInBounds);
+                        }
+                        particle.processed = true;
+                    }
                 }
             }
         }
@@ -298,6 +317,7 @@ class ElementRegistry {
     }
     
     // Process a particle at the specified location
+    // This method is now inlined in the main loop for performance
     processParticleAt(x, y, isInBounds) {
         if (!this.grid || !isInBounds(x, y) || !this.grid[y][x]) return;
         
@@ -331,10 +351,17 @@ class ElementRegistry {
         // Get the no-boundaries mode from window
         const noBoundariesMode = window.noBoundariesMode || false;
         
+        // Cache grid dimensions for performance
+        const gridHeight = this.grid.length;
+        const gridWidth = this.grid[0].length;
+        
         // Apply gravity to any remaining particles that didn't handle their own gravity
-        for (let y = this.grid.length - 2; y >= 0; y--) {
-            for (let x = 0; x < this.grid[y].length; x++) {
-                const particle = this.grid[y][x];
+        for (let y = gridHeight - 2; y >= 0; y--) {
+            const currentRow = this.grid[y];
+            const nextRow = this.grid[y + 1];
+            
+            for (let x = 0; x < gridWidth; x++) {
+                const particle = currentRow[x];
                 if (!particle) continue;
                 
                 // In no-boundaries mode, be more aggressive with gravity
@@ -344,13 +371,10 @@ class ElementRegistry {
                     // In normal mode, only apply to particles that should be affected by gravity
                     (particle.isLiquid || particle.isPowder || particle.hasGravity);
                 
-                // Apply gravity if appropriate
-                if (shouldApplyGravity && !particle.processed) {
-                    // Move down if possible
-                    if (!this.grid[y + 1][x]) {
-                        this.grid[y + 1][x] = particle;
-                        this.grid[y][x] = null;
-                    }
+                // Apply gravity if appropriate - avoid repeated checks and method calls in tight loop
+                if (shouldApplyGravity && !particle.processed && !nextRow[x]) {
+                    nextRow[x] = particle;
+                    currentRow[x] = null;
                 }
             }
         }
@@ -384,96 +408,122 @@ class ElementRegistry {
         
         // This should match the CELL_SIZE in main.js
         const CELL_SIZE = window.CELL_SIZE || 4; // Default to 4 if global value not set
+        const gridHeight = this.grid.length;
+        const gridWidth = this.grid[0].length;
         
-        for (let y = 0; y < this.grid.length; y++) {
-            for (let x = 0; x < this.grid[y].length; x++) {
-                const particle = this.grid[y][x];
+        // Group particles by type/color to minimize context state changes
+        const colorGroups = new Map();
+        const specialRenders = [];
+        
+        // First pass: group particles
+        for (let y = 0; y < gridHeight; y++) {
+            const gridRow = this.grid[y];
+            for (let x = 0; x < gridWidth; x++) {
+                const particle = gridRow[x];
                 if (!particle) continue;
                 
                 // Calculate pixel coordinates
                 const pixelX = Math.floor(x * CELL_SIZE);
                 const pixelY = Math.floor(y * CELL_SIZE);
                 
-                // Special rendering for visual effects
+                // Special rendering for visual effects - collect separately
                 if (particle.isVisualEffect) {
-                    switch (particle.type) {
-                        case 'heat-effect':
-                            // Render heat effect (glowing red-orange particle)
-                            ctx.fillStyle = particle.color || 'rgba(255, 150, 0, 0.3)';
-                            ctx.beginPath();
-                            ctx.arc(
-                                pixelX + CELL_SIZE/2, 
-                                pixelY + CELL_SIZE/2, 
-                                CELL_SIZE/2 * (0.7 + Math.random() * 0.3), 
-                                0, 
-                                Math.PI * 2
-                            );
-                            ctx.fill();
-                            continue;
-                            
-                        case 'cold-effect':
-                            // Render cold effect (blue-white snowflake or frost particle)
-                            ctx.fillStyle = particle.color || 'rgba(220, 240, 255, 0.3)';
-                            // Draw a small snowflake/star
-                            const centerX = pixelX + CELL_SIZE/2;
-                            const centerY = pixelY + CELL_SIZE/2;
-                            const size = CELL_SIZE * 0.6;
-                            
-                            ctx.beginPath();
-                            for (let i = 0; i < 6; i++) {
-                                const angle = (Math.PI * 2 / 6) * i;
-                                const lineX = centerX + Math.cos(angle) * size;
-                                const lineY = centerY + Math.sin(angle) * size;
-                                
-                                ctx.moveTo(centerX, centerY);
-                                ctx.lineTo(lineX, lineY);
-                            }
-                            ctx.strokeStyle = particle.color || 'rgba(220, 240, 255, 0.5)';
-                            ctx.stroke();
-                            continue;
-                            
-                        case 'wind-effect':
-                            // Render wind effect (directional streaks)
-                            ctx.fillStyle = particle.color || 'rgba(255, 255, 255, 0.2)';
-                            
-                            // Draw a streak in the wind direction
-                            let startX = pixelX, startY = pixelY;
-                            let endX = startX, endY = startY;
-                            
-                            switch (particle.direction) {
-                                case 'right': 
-                                    endX = startX + CELL_SIZE * 1.5; 
-                                    break;
-                                case 'left': 
-                                    endX = startX - CELL_SIZE * 0.5; 
-                                    break;
-                                case 'down': 
-                                    endY = startY + CELL_SIZE * 1.5; 
-                                    break;
-                                case 'up': 
-                                    endY = startY - CELL_SIZE * 0.5; 
-                                    break;
-                            }
-                            
-                            ctx.beginPath();
-                            ctx.moveTo(startX + CELL_SIZE/2, startY + CELL_SIZE/2);
-                            ctx.lineTo(endX + CELL_SIZE/2, endY + CELL_SIZE/2);
-                            ctx.lineWidth = CELL_SIZE * 0.3;
-                            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-                            ctx.stroke();
-                            continue;
-                    }
+                    specialRenders.push([particle, pixelX, pixelY]);
+                    continue;
                 }
                 
-                // Standard element rendering
-                const element = this.getElement(particle.type);
-                if (element && element.render) {
-                    element.render(ctx, x, y, particle, CELL_SIZE);
-                } else {
-                    // Default rendering - ensure perfect grid alignment
-                    ctx.fillStyle = particle.color || '#FFFFFF';
-                    ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE);
+                // Group regular particles by color
+                const color = particle.color || '#FFFFFF';
+                if (!colorGroups.has(color)) {
+                    colorGroups.set(color, []);
                 }
+                colorGroups.get(color).push([pixelX, pixelY]);
+            }
+        }
+        
+        // Second pass: batch render standard particles by color
+        colorGroups.forEach((positions, color) => {
+            ctx.fillStyle = color;
+            for (let i = 0; i < positions.length; i++) {
+                const [pixelX, pixelY] = positions[i];
+                ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE);
+            }
+        });
+        
+        // Third pass: render special effects
+        for (let i = 0; i < specialRenders.length; i++) {
+            const [particle, pixelX, pixelY] = specialRenders[i];
+            
+            switch (particle.type) {
+                case 'heat-effect':
+                    // Render heat effect (glowing red-orange particle)
+                    ctx.fillStyle = particle.color || 'rgba(255, 150, 0, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(
+                        pixelX + CELL_SIZE/2, 
+                        pixelY + CELL_SIZE/2, 
+                        CELL_SIZE/2 * (0.7 + Math.random() * 0.3), 
+                        0, 
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                    break;
+                    
+                case 'cold-effect':
+                    // Render cold effect (blue-white snowflake or frost particle)
+                    ctx.fillStyle = particle.color || 'rgba(220, 240, 255, 0.3)';
+                    // Draw a small snowflake/star
+                    const centerX = pixelX + CELL_SIZE/2;
+                    const centerY = pixelY + CELL_SIZE/2;
+                    const size = CELL_SIZE * 0.6;
+                    
+                    ctx.beginPath();
+                    for (let j = 0; j < 6; j++) {
+                        const angle = (Math.PI * 2 / 6) * j;
+                        const lineX = centerX + Math.cos(angle) * size;
+                        const lineY = centerY + Math.sin(angle) * size;
+                        
+                        ctx.moveTo(centerX, centerY);
+                        ctx.lineTo(lineX, lineY);
+                    }
+                    ctx.strokeStyle = particle.color || 'rgba(220, 240, 255, 0.5)';
+                    ctx.stroke();
+                    break;
+                    
+                case 'wind-effect':
+                    // Render wind effect (directional streaks)
+                    ctx.fillStyle = particle.color || 'rgba(255, 255, 255, 0.2)';
+                    
+                    // Draw a streak in the wind direction
+                    let startX = pixelX, startY = pixelY;
+                    let endX = startX, endY = startY;
+                    
+                    switch (particle.direction) {
+                        case 'right': 
+                            endX = startX + CELL_SIZE * 1.5; 
+                            break;
+                        case 'left': 
+                            endX = startX - CELL_SIZE * 0.5; 
+                            break;
+                        case 'down': 
+                            endY = startY + CELL_SIZE * 1.5; 
+                            break;
+                        case 'up': 
+                            endY = startY - CELL_SIZE * 0.5; 
+                            break;
+                    }
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(startX + CELL_SIZE/2, startY + CELL_SIZE/2);
+                    ctx.lineTo(endX + CELL_SIZE/2, endY + CELL_SIZE/2);
+                    ctx.lineWidth = CELL_SIZE * 0.3;
+                    ctx.stroke();
+                    break;
+                    
+                default:
+                    // Fallback for unrecognized visual effects
+                    ctx.fillStyle = particle.color || 'rgba(255, 255, 255, 0.5)';
+                    ctx.fillRect(pixelX, pixelY, CELL_SIZE, CELL_SIZE);
             }
         }
     }

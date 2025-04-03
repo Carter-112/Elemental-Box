@@ -737,8 +737,9 @@ function update() {
     
     // Process visual effect particles (wind, heat, cold effects)
     for (let y = 0; y < gridHeight; y++) {
+        const gridRow = grid[y];
         for (let x = 0; x < gridWidth; x++) {
-            const particle = grid[y][x];
+            const particle = gridRow[x];
             if (!particle || !particle.isVisualEffect) continue;
             
             // Decrement lifetime
@@ -747,7 +748,7 @@ function update() {
                 
                 // Remove particle if lifetime expired
                 if (particle.lifetime <= 0) {
-                    grid[y][x] = null;
+                    gridRow[x] = null;
                     continue;
                 }
             }
@@ -761,10 +762,10 @@ function update() {
                 const newX = Math.floor(x + vx);
                 const newY = Math.floor(y + vy);
                 
-                // Move particle if new position is valid
-                if (isInBounds(newX, newY) && !grid[newY][newX]) {
+                // Move particle if new position is valid - use direct array access for speed
+                if (newX >= 0 && newX < gridWidth && newY >= 0 && newY < gridHeight && !grid[newY][newX]) {
                     grid[newY][newX] = particle;
-                    grid[y][x] = null;
+                    gridRow[x] = null;
                 }
             }
         }
@@ -861,10 +862,18 @@ function update() {
 // Reset processed flags for all particles before each update cycle
 function resetProcessedFlags() {
     if (!grid) return;
-    for (let y = 0; y < gridHeight; y++) {
-        for (let x = 0; x < gridWidth; x++) {
-            if (grid[y][x]) {
-                grid[y][x].processed = false;
+    
+    // Cache the grid dimensions for performance
+    const height = grid.length;
+    const width = grid[0].length;
+    
+    // Use a single loop with batch operations for better performance
+    for (let y = 0; y < height; y++) {
+        const gridRow = grid[y];
+        for (let x = 0; x < width; x++) {
+            const particle = gridRow[x];
+            if (particle) {
+                particle.processed = false;
             }
         }
     }
@@ -2554,20 +2563,40 @@ function drawParticles() {
     // ctx.fillStyle = '#222'; // Example background
     // ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Render particles using ElementRegistry
+    // Render particles using ElementRegistry (preferred method)
     if (window.ElementRegistry && typeof window.ElementRegistry.renderParticles === 'function') {
         window.ElementRegistry.renderParticles(ctx);
     } else {
-        // Fallback basic rendering if registry fails
-        console.warn("ElementRegistry.renderParticles not found, using fallback rendering.");
+        // Fallback basic rendering if registry fails - with optimizations
+        const cellSize = CELL_SIZE; // Cache for better performance
+        
+        // Group particles by color to minimize context state changes
+        const colorMap = new Map();
+        
+        // First pass: group particles by color
         for (let y = 0; y < gridHeight; y++) {
+            const gridRow = grid[y];
             for (let x = 0; x < gridWidth; x++) {
-                if (grid[y][x]) {
-                    ctx.fillStyle = grid[y][x].color || '#FFFFFF';
-                    ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                const particle = gridRow[x];
+                if (!particle) continue;
+                
+                const color = particle.color || '#FFFFFF';
+                if (!colorMap.has(color)) {
+                    colorMap.set(color, []);
                 }
+                colorMap.get(color).push([x, y]);
             }
         }
+        
+        // Second pass: render particles by color group
+        colorMap.forEach((particles, color) => {
+            ctx.fillStyle = color;
+            
+            for (let i = 0; i < particles.length; i++) {
+                const [x, y] = particles[i];
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            }
+        });
     }
 }
 
@@ -2614,11 +2643,16 @@ function updateFPS() {
 
 // Update particle count display
 function updateParticleCount() {
+    // Only update the count every 30 frames to reduce overhead
+    if (frameCount % 30 !== 0) return;
+    
     let count = 0;
     if (grid) {
+        // Use a more efficient counting approach
         for (let y = 0; y < gridHeight; y++) {
+            const gridRow = grid[y];
             for (let x = 0; x < gridWidth; x++) {
-                if (grid[y][x]) {
+                if (gridRow[x]) {
                     count++;
                 }
             }

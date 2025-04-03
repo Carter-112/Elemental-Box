@@ -120,7 +120,7 @@ const LavaElement = {
                 // Interactions with specific elements
                 switch (grid[ny][nx].type) {
                     case 'water':
-                        // Water + Lava = Stone + Steam
+                        // Water + Lava = Steam
                         grid[ny][nx] = {
                             type: 'steam',
                             color: '#DDDDDD',
@@ -136,40 +136,9 @@ const LavaElement = {
                         grid[y][x].temperature -= 50;
                         break;
                         
-                    case 'stone':
-                    case 'sand':
-                    case 'glass':
-                    case 'brick':
-                        // Melt these materials if hot enough
-                        if (grid[y][x].temperature > 1000 && Math.random() < 0.2) {
-                            grid[ny][nx] = {
-                                type: 'lava',
-                                color: grid[y][x].color,
-                                temperature: grid[y][x].temperature - 50,
-                                processed: true,
-                                isGas: false,
-                                isLiquid: true,
-                                isPowder: false,
-                                isSolid: false,
-                                viscosity: grid[y][x].viscosity,
-                                glowIntensity: grid[y][x].glowIntensity * 0.9
-                            };
-                        }
-                        break;
-                        
-                    case 'wood':
-                    case 'plant':
-                        // Set flammable materials on fire
-                        grid[ny][nx] = {
-                            type: 'fire',
-                            color: '#FF9900',
-                            temperature: 200,
-                            processed: true,
-                            isGas: true,
-                            isLiquid: false,
-                            isPowder: false,
-                            isSolid: false
-                        };
+                    case 'steel':
+                        // Steel is resistant to lava - don't melt it
+                        // Just heat it up (already handled via heat transfer)
                         break;
                         
                     case 'ice':
@@ -184,6 +153,58 @@ const LavaElement = {
                             isPowder: false,
                             isSolid: false
                         };
+                        break;
+                        
+                    default:
+                        // Melt through ALL other materials
+                        if (Math.random() < 0.2) {
+                            // Create appropriate effects based on material type
+                            const isFlammable = grid[ny][nx].flammable || 
+                                ['wood', 'plant', 'oil', 'fuse'].includes(grid[ny][nx].type);
+                            
+                            // Flammable materials catch fire before disappearing
+                            if (isFlammable) {
+                                grid[ny][nx] = {
+                                    type: 'fire',
+                                    color: '#FF9900',
+                                    temperature: 200,
+                                    processed: true,
+                                    isGas: true,
+                                    isLiquid: false,
+                                    isPowder: false,
+                                    isSolid: false
+                                };
+                            } else {
+                                // Create a small amount of smoke as the material melts
+                                if (Math.random() < 0.5 && isInBounds(nx, ny-1) && !grid[ny-1][nx]) {
+                                    grid[ny-1][nx] = {
+                                        type: 'smoke',
+                                        color: '#999999',
+                                        temperature: 150,
+                                        processed: true,
+                                        isGas: true,
+                                        isLiquid: false,
+                                        isPowder: false,
+                                        isSolid: false
+                                    };
+                                }
+                                
+                                // Remove the material (melt through it)
+                                grid[ny][nx] = null;
+                            }
+                            
+                            // Metals and dense materials cool lava more when they melt
+                            const isMetal = ['metal', 'copper'].includes(grid[ny][nx]?.type);
+                            const isDense = ['stone', 'brick', 'glass'].includes(grid[ny][nx]?.type);
+                            
+                            if (isMetal) {
+                                grid[y][x].temperature -= 40;
+                            } else if (isDense) {
+                                grid[y][x].temperature -= 20;
+                            } else {
+                                grid[y][x].temperature -= 10;
+                            }
+                        }
                         break;
                 }
             } else {

@@ -128,7 +128,7 @@ const AcidElement = {
             // Acid doesn't corrode steel
             if (grid[ny][nx].type === 'steel') continue;
             
-            // Acid produces gas when melting materials
+            // Acid melts through ALL other materials (except water and other acid)
             if (grid[ny][nx].type !== 'acid' && grid[ny][nx].type !== 'water') {
                 // Corrode the material
                 grid[ny][nx] = null;
@@ -148,7 +148,7 @@ const AcidElement = {
                 
                 if (isInBounds(gasX, gasY) && !grid[gasY][gasX]) {
                     grid[gasY][gasX] = {
-                        type: 'smoke',
+                        type: 'acid-gas',
                         color: '#A6BAA9', // Acid gas color
                         temperature: grid[y][x].temperature + 10,
                         processed: true,
@@ -159,8 +159,15 @@ const AcidElement = {
                     };
                 }
                 
-                // Reduce acid potency after corrosion
-                grid[y][x].potency -= 0.2;
+                // Acid dissipates when it melts materials (unlike lava)
+                grid[y][x].potency -= 0.3; // Increased potency reduction
+                
+                // Acid can completely disappear with small chance when melting dense materials
+                const isDense = ['metal', 'stone', 'brick', 'glass'].includes(grid[ny][nx]?.type);
+                if (isDense && Math.random() < 0.25) {
+                    grid[y][x] = null;
+                    return;
+                }
                 
                 // Adjust color based on potency
                 const potencyFactor = grid[y][x].potency;
