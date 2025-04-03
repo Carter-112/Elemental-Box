@@ -118,7 +118,7 @@
     }
   ],
   
-  "display_override": ["window-controls-overlay"],
+  "display_override": ["window-controls-overlay", "minimal-ui"],
   
   "edge_side_panel": {
     "preferred_width": 400
@@ -159,5 +159,6 @@
       "auth": false,
       "update": 86400
     }
-  ]
+  ],
+  "minimum_ui_width": 1024
 } 

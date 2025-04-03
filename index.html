@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=1024, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ElementalBox - Particle Sandbox</title>
     
     <!-- PWA Support -->
@@ -40,6 +40,13 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Feature detection is handled by the pwabuilder-sw-register.js script
+            
+            // Check if running as installed PWA and force desktop layout
+            if (window.matchMedia('(display-mode: standalone)').matches || 
+                window.navigator.standalone === true) {
+                // Running as installed PWA - apply desktop layout override
+                document.body.classList.add('pwa-installed');
+            }
         });
     </script>
     
@@ -1174,6 +1181,74 @@
             .nav-link {
                 padding: 4px 8px;
                 font-size: 12px;
+            }
+        }
+        
+        /* PWA desktop layout overrides - applied when running as installed PWA */
+        body.pwa-installed #app-container {
+            flex-direction: row !important;
+        }
+        
+        body.pwa-installed #content-container {
+            flex-direction: row !important;
+        }
+        
+        body.pwa-installed #toolbar {
+            width: 300px !important;
+            height: 100% !important;
+            max-height: none !important;
+            overflow-y: scroll !important;
+            border-right: 1px solid #333 !important;
+            border-bottom: none !important;
+            padding: 10px !important;
+        }
+        
+        body.pwa-installed #canvas-container {
+            height: 100% !important;
+        }
+        
+        body.pwa-installed #top-ad-container {
+            width: 50% !important;
+            height: 100px !important;
+        }
+        
+        body.pwa-installed #side-ad-container {
+            top: 100px !important;
+            width: 100px !important;
+            height: 500px !important;
+        }
+        
+        /* Media query override for PWA - force desktop layout regardless of screen width */
+        @media (max-width: 768px) {
+            body.pwa-installed #app-container,
+            body.pwa-installed #content-container,
+            body.pwa-installed #toolbar,
+            body.pwa-installed #canvas-container,
+            body.pwa-installed #top-ad-container,
+            body.pwa-installed #side-ad-container {
+                /* These !important declarations ensure our desktop overrides take precedence */
+                all: revert !important;
+            }
+            
+            body.pwa-installed #app-container {
+                flex-direction: row !important;
+            }
+            
+            body.pwa-installed #content-container {
+                flex-direction: row !important;
+            }
+            
+            body.pwa-installed #toolbar {
+                width: 300px !important;
+                height: 100% !important;
+                max-height: none !important;
+                overflow-y: scroll !important;
+                border-right: 1px solid #333 !important;
+                border-bottom: none !important;
+            }
+            
+            body.pwa-installed #canvas-container {
+                height: 100% !important;
             }
         }
     </style>
