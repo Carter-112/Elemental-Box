@@ -16,77 +16,80 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow-x: hidden;
         }
         
-        .container {
-            flex: 1;
-            max-width: 800px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 0 15px;
-            box-sizing: border-box;
-        }
-        
-        /* Header styles */
-        .header {
+        /* Top Navigation Bar */
+        .top-nav {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px;
             background-color: #1a1a1a;
+            padding: 10px 15px;
+            width: 100%;
+            box-sizing: border-box;
             border-bottom: 1px solid #333;
+            z-index: 100;
         }
         
-        .header h1 {
-            margin: 0;
+        .site-title {
+            font-size: 22px;
+            font-weight: bold;
             color: #00a8ff;
-            font-size: 24px;
-            white-space: nowrap;
+            margin: 0;
+            text-align: center;
+            flex: 1;
         }
         
-        .nav {
+        .nav-links {
             display: flex;
-            gap: 15px;
+            align-items: center;
+            gap: 10px;
         }
         
-        .nav a {
+        .nav-links a {
             color: #e0e0e0;
             text-decoration: none;
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-radius: 4px;
             transition: background-color 0.2s;
             white-space: nowrap;
+            font-size: 14px;
         }
         
-        .nav a:hover {
+        .nav-links a:hover {
             background-color: #333;
         }
         
-        /* Content styles */
-        .content {
-            padding: 20px 0;
+        /* Main layout container */
+        .layout-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
         }
         
-        h1 {
-            font-size: 26px;
-            margin: 0 0 15px 0;
-            color: #00a8ff;
+        /* Content area */
+        .main-content {
+            flex: 1;
+            padding: 15px;
+            box-sizing: border-box;
+            overflow-y: auto;
         }
         
-        p {
-            line-height: 1.5;
-            margin-bottom: 15px;
-        }
-        
-        /* Form styles */
-        .contact-form {
+        .content-box {
             background-color: #1a1a1a;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-            margin: 0 auto;
         }
         
+        h1 {
+            font-size: 24px;
+            margin: 0 0 15px 0;
+            color: #00a8ff;
+        }
+        
+        /* Form styles */
         .form-group {
             margin-bottom: 15px;
         }
@@ -137,6 +140,20 @@
             background-color: #0077cc;
         }
         
+        /* UI controls section */
+        .ui-controls {
+            background-color: #1a1a1a;
+            border-top: 1px solid #333;
+            padding: 15px;
+        }
+        
+        .ui-controls h2 {
+            font-size: 18px;
+            margin: 0 0 10px 0;
+            color: #00a8ff;
+        }
+        
+        /* Notification messages */
         .form-message {
             margin-top: 15px;
             padding: 10px;
@@ -157,14 +174,14 @@
             color: #e74c3c;
         }
         
-        /* Footer styles */
+        /* Footer */
         .footer {
             text-align: center;
-            padding: 15px;
+            padding: 10px 15px;
+            background-color: #1a1a1a;
             border-top: 1px solid #333;
-            margin-top: 20px;
             color: #888;
-            font-size: 14px;
+            font-size: 12px;
         }
         
         /* Light mode styles */
@@ -173,30 +190,36 @@
             color: #333;
         }
         
-        body.light-mode .header {
+        body.light-mode .top-nav {
             background-color: #e0e0e0;
             border-bottom: 1px solid #ccc;
         }
         
-        body.light-mode .header h1 {
+        body.light-mode .site-title {
             color: #0066cc;
         }
         
-        body.light-mode .nav a {
+        body.light-mode .nav-links a {
             color: #333;
         }
         
-        body.light-mode .nav a:hover {
+        body.light-mode .nav-links a:hover {
             background-color: #ddd;
         }
         
-        body.light-mode h1 {
+        body.light-mode h1,
+        body.light-mode h2 {
             color: #0066cc;
         }
         
-        body.light-mode .contact-form {
+        body.light-mode .content-box,
+        body.light-mode .ui-controls {
             background-color: #ffffff;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        body.light-mode .ui-controls {
+            border-top: 1px solid #ccc;
         }
         
         body.light-mode input, 
@@ -207,200 +230,177 @@
         }
         
         body.light-mode .footer {
+            background-color: #e0e0e0;
             border-top: 1px solid #ccc;
             color: #666;
         }
         
-        /* PORTRAIT MODE - Standard mobile */
-        @media (max-width: 768px) {
-            .header {
+        /* Game play section */
+        .gameplay {
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            color: #00a8ff;
+        }
+        
+        /* PORTRAIT MODE (vertical) */
+        @media (orientation: portrait) {
+            .layout-container {
+                display: flex;
                 flex-direction: column;
-                padding: 12px;
             }
             
-            .header h1 {
-                margin-bottom: 10px;
-            }
-            
-            .nav {
+            .main-content {
+                order: 1;
                 width: 100%;
-                justify-content: center;
             }
             
-            .content {
-                padding: 15px 0;
+            .gameplay {
+                order: 2;
+            }
+            
+            .ui-controls {
+                order: 3;
+            }
+        }
+        
+        /* LANDSCAPE MODE (horizontal) */
+        @media (orientation: landscape) {
+            .layout-container {
+                flex-direction: row;
+            }
+            
+            .ui-controls {
+                width: 200px;
+                min-width: 200px;
+                border-top: none;
+                border-right: 1px solid #333;
+                height: 100%;
+                overflow-y: auto;
+            }
+            
+            .content-wrapper {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .main-content {
+                flex: 1;
+            }
+            
+            .gameplay {
+                text-align: right;
+                padding: 10px 20px;
+            }
+            
+            body.light-mode .ui-controls {
+                border-right: 1px solid #ccc;
+                border-top: none;
+            }
+        }
+        
+        /* Small screens adjustments */
+        @media (max-width: 600px) {
+            .site-title {
+                font-size: 18px;
+            }
+            
+            .nav-links a {
+                padding: 5px 8px;
+                font-size: 13px;
             }
             
             h1 {
-                font-size: 24px;
+                font-size: 20px;
                 text-align: center;
             }
             
-            p {
-                text-align: center;
-            }
-            
-            .contact-form {
+            .content-box {
                 padding: 15px;
             }
         }
         
-        /* Small devices in portrait */
-        @media (max-width: 400px) {
-            .nav a {
-                padding: 6px 8px;
-                font-size: 14px;
+        /* Extra small screens */
+        @media (max-width: 350px) {
+            .site-title {
+                font-size: 16px;
             }
             
-            h1 {
-                font-size: 22px;
-            }
-            
-            .form-message {
-                font-size: 14px;
-            }
-        }
-        
-        /* LANDSCAPE MODE */
-        @media (orientation: landscape) and (max-height: 500px) {
-            .header {
-                flex-direction: row;
-                padding: 8px 15px;
-            }
-            
-            .header h1 {
-                font-size: 20px;
-                margin-bottom: 0;
-            }
-            
-            .nav a {
-                padding: 5px 10px;
-                font-size: 14px;
-            }
-            
-            .container {
-                display: flex;
-                flex-direction: column;
-            }
-            
-            .content {
-                padding: 10px 0;
-                display: flex;
-                flex-direction: column;
-            }
-            
-            h1 {
-                font-size: 20px;
-                margin-bottom: 10px;
-                text-align: center;
-            }
-            
-            p {
-                display: none; /* Hide descriptive text in landscape to save space */
-            }
-            
-            .contact-form {
-                padding: 12px;
-                flex: 1;
-            }
-            
-            .form-layout {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 10px;
-            }
-            
-            .form-column {
-                flex: 1;
-                min-width: 180px;
-            }
-            
-            .form-group {
-                margin-bottom: 10px;
-            }
-            
-            label {
-                margin-bottom: 4px;
-                font-size: 14px;
-            }
-            
-            input {
-                padding: 8px;
-            }
-            
-            textarea {
-                min-height: 80px;
-                padding: 8px;
-            }
-            
-            button {
-                min-height: 40px;
-                padding: 8px;
-            }
-            
-            .footer {
-                padding: 8px;
-                margin-top: 10px;
+            .nav-links a {
+                padding: 4px 6px;
                 font-size: 12px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>ElementalBox</h1>
-        <div class="nav">
-            <a href="index.html">Sandbox</a>
-            <a href="privacy-policy.html">Privacy Policy</a>
+    <!-- Top Navigation Bar -->
+    <div class="top-nav">
+        <div class="nav-links">
+            <a href="privacy-policy.html">Priv</a>
             <a href="contact.html">Contact</a>
+        </div>
+        <h1 class="site-title">ElementalBox</h1>
+        <div class="nav-links">
+            <!-- Space for additional links on right side -->
         </div>
     </div>
     
-    <div class="container">
-        <div class="content">
-            <h1>Contact Us</h1>
-            
-            <p>Have questions or feedback? Use the form below to get in touch with us.</p>
-            
-            <div class="contact-form">
-                <form id="contactForm" method="POST">
-                    <div class="form-layout">
-                        <div class="form-column">
-                            <div class="form-group">
-                                <label for="name">Name</label>
-                                <input type="text" id="name" name="name" required autocomplete="name">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="email">Email</label>
-                                <input type="email" id="email" name="email" required autocomplete="email">
-                            </div>
-                        </div>
-                        
-                        <div class="form-column">
-                            <div class="form-group">
-                                <label for="message">Message</label>
-                                <textarea id="message" name="message" required></textarea>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button type="submit">Send Message</button>
-                </form>
-                
-                <div id="formSuccess" class="form-message success">
-                    Your email client has been opened with your message. Please send the email to complete your message.
-                </div>
-                
-                <div id="formError" class="form-message error">
-                    There was an error processing your request. Please try again.
-                </div>
-            </div>
+    <div class="layout-container">
+        <!-- UI Controls Section (left side in landscape, bottom in portrait) -->
+        <div class="ui-controls">
+            <h2>UI</h2>
+            <!-- UI controls can be added here -->
+            <p>Contact Settings</p>
+            <p>Form Controls</p>
         </div>
         
-        <div class="footer">
-            <p>&copy; 2025 ElementalBox. All rights reserved.</p>
+        <div class="content-wrapper">
+            <!-- Main Content Area -->
+            <div class="main-content">
+                <h1>Contact Us</h1>
+                
+                <div class="content-box">
+                    <form id="contactForm" method="POST">
+                        <div class="form-group">
+                            <label for="name">Name</label>
+                            <input type="text" id="name" name="name" required autocomplete="name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" name="email" required autocomplete="email">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="message">Message</label>
+                            <textarea id="message" name="message" required></textarea>
+                        </div>
+                        
+                        <button type="submit">Send Message</button>
+                        
+                        <div id="formSuccess" class="form-message success">
+                            Your email client has been opened with your message. Please send the email to complete your message.
+                        </div>
+                        
+                        <div id="formError" class="form-message error">
+                            There was an error processing your request. Please try again.
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Gameplay Section (right in landscape, middle in portrait) -->
+            <div class="gameplay">
+                Gameplay
+            </div>
         </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+        <p>&copy; 2025 ElementalBox. All rights reserved.</p>
     </div>
     
     <script>

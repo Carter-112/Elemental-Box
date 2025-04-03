@@ -16,58 +16,67 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow-x: hidden;
         }
         
-        .container {
-            flex: 1;
-            max-width: 800px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 0 15px;
-            box-sizing: border-box;
-        }
-        
-        /* Header styles */
-        .header {
+        /* Top Navigation Bar */
+        .top-nav {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px;
             background-color: #1a1a1a;
+            padding: 10px 15px;
+            width: 100%;
+            box-sizing: border-box;
             border-bottom: 1px solid #333;
+            z-index: 100;
         }
         
-        .header h1 {
-            margin: 0;
+        .site-title {
+            font-size: 22px;
+            font-weight: bold;
             color: #00a8ff;
-            font-size: 24px;
-            white-space: nowrap;
+            margin: 0;
+            text-align: center;
+            flex: 1;
         }
         
-        .nav {
+        .nav-links {
             display: flex;
-            gap: 15px;
+            align-items: center;
+            gap: 10px;
         }
         
-        .nav a {
+        .nav-links a {
             color: #e0e0e0;
             text-decoration: none;
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-radius: 4px;
             transition: background-color 0.2s;
             white-space: nowrap;
+            font-size: 14px;
         }
         
-        .nav a:hover {
+        .nav-links a:hover {
             background-color: #333;
         }
         
-        /* Content styles */
-        .content {
-            padding: 20px 0;
+        /* Main layout container */
+        .layout-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
         }
         
-        .policy-content {
+        /* Content area */
+        .main-content {
+            flex: 1;
+            padding: 15px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        
+        .content-box {
             background-color: #1a1a1a;
             padding: 20px;
             border-radius: 8px;
@@ -75,15 +84,15 @@
         }
         
         h1 {
-            font-size: 26px;
+            font-size: 24px;
             margin: 0 0 15px 0;
             color: #00a8ff;
         }
         
         h2 {
             color: #00a8ff;
-            margin: 25px 0 10px 0;
-            font-size: 20px;
+            margin: 20px 0 10px 0;
+            font-size: 18px;
         }
         
         p {
@@ -91,14 +100,27 @@
             margin-bottom: 15px;
         }
         
-        /* Footer styles */
+        /* UI controls section */
+        .ui-controls {
+            background-color: #1a1a1a;
+            border-top: 1px solid #333;
+            padding: 15px;
+        }
+        
+        .ui-controls h2 {
+            font-size: 18px;
+            margin: 0 0 10px 0;
+            color: #00a8ff;
+        }
+        
+        /* Footer */
         .footer {
             text-align: center;
-            padding: 15px;
+            padding: 10px 15px;
+            background-color: #1a1a1a;
             border-top: 1px solid #333;
-            margin-top: 20px;
             color: #888;
-            font-size: 14px;
+            font-size: 12px;
         }
         
         /* Light mode styles */
@@ -107,20 +129,20 @@
             color: #333;
         }
         
-        body.light-mode .header {
+        body.light-mode .top-nav {
             background-color: #e0e0e0;
             border-bottom: 1px solid #ccc;
         }
         
-        body.light-mode .header h1 {
+        body.light-mode .site-title {
             color: #0066cc;
         }
         
-        body.light-mode .nav a {
+        body.light-mode .nav-links a {
             color: #333;
         }
         
-        body.light-mode .nav a:hover {
+        body.light-mode .nav-links a:hover {
             background-color: #ddd;
         }
         
@@ -129,186 +151,208 @@
             color: #0066cc;
         }
         
-        body.light-mode .policy-content {
+        body.light-mode .content-box,
+        body.light-mode .ui-controls {
             background-color: #ffffff;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
         
+        body.light-mode .ui-controls {
+            border-top: 1px solid #ccc;
+        }
+        
         body.light-mode .footer {
+            background-color: #e0e0e0;
             border-top: 1px solid #ccc;
             color: #666;
         }
         
-        /* PORTRAIT MODE - Standard mobile */
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                padding: 12px;
-            }
-            
-            .header h1 {
-                margin-bottom: 10px;
-            }
-            
-            .nav {
-                width: 100%;
-                justify-content: center;
-            }
-            
-            .content {
-                padding: 15px 0;
-            }
-            
-            h1 {
-                font-size: 24px;
-                text-align: center;
-            }
-            
-            .policy-content {
-                padding: 15px;
-            }
-            
-            h2 {
-                font-size: 18px;
-            }
+        /* Game play section */
+        .gameplay {
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            color: #00a8ff;
         }
         
-        /* Small devices in portrait */
-        @media (max-width: 400px) {
-            .nav a {
-                padding: 6px 8px;
-                font-size: 14px;
-            }
-            
-            h1 {
-                font-size: 22px;
-            }
-            
-            h2 {
-                font-size: 16px;
-            }
-            
-            p {
-                font-size: 14px;
-            }
-        }
-        
-        /* LANDSCAPE MODE */
-        @media (orientation: landscape) and (max-height: 500px) {
-            .header {
-                flex-direction: row;
-                padding: 8px 15px;
-            }
-            
-            .header h1 {
-                font-size: 20px;
-                margin-bottom: 0;
-            }
-            
-            .nav a {
-                padding: 5px 10px;
-                font-size: 14px;
-            }
-            
-            .container {
+        /* PORTRAIT MODE (vertical) */
+        @media (orientation: portrait) {
+            .layout-container {
                 display: flex;
                 flex-direction: column;
             }
             
-            .content {
-                padding: 10px 0;
+            .main-content {
+                order: 1;
+                width: 100%;
+            }
+            
+            .gameplay {
+                order: 2;
+            }
+            
+            .ui-controls {
+                order: 3;
+            }
+        }
+        
+        /* LANDSCAPE MODE (horizontal) */
+        @media (orientation: landscape) {
+            .layout-container {
+                flex-direction: row;
+            }
+            
+            .ui-controls {
+                width: 200px;
+                min-width: 200px;
+                border-top: none;
+                border-right: 1px solid #333;
+                height: 100%;
                 overflow-y: auto;
+            }
+            
+            .content-wrapper {
                 flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .main-content {
+                flex: 1;
+            }
+            
+            .gameplay {
+                text-align: right;
+                padding: 10px 20px;
+            }
+            
+            body.light-mode .ui-controls {
+                border-right: 1px solid #ccc;
+                border-top: none;
+            }
+        }
+        
+        /* Small screens adjustments */
+        @media (max-width: 600px) {
+            .site-title {
+                font-size: 18px;
+            }
+            
+            .nav-links a {
+                padding: 5px 8px;
+                font-size: 13px;
             }
             
             h1 {
                 font-size: 20px;
-                margin-bottom: 10px;
                 text-align: center;
             }
             
-            .policy-content {
-                padding: 12px;
-                overflow-y: auto;
+            .content-box {
+                padding: 15px;
             }
             
             h2 {
-                margin: 15px 0 5px 0;
                 font-size: 16px;
             }
             
             p {
-                margin-bottom: 10px;
                 font-size: 14px;
             }
+        }
+        
+        /* Extra small screens */
+        @media (max-width: 350px) {
+            .site-title {
+                font-size: 16px;
+            }
             
-            .footer {
-                padding: 8px;
-                margin-top: 10px;
+            .nav-links a {
+                padding: 4px 6px;
                 font-size: 12px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>ElementalBox</h1>
-        <div class="nav">
-            <a href="index.html">Sandbox</a>
-            <a href="privacy-policy.html">Privacy Policy</a>
+    <!-- Top Navigation Bar -->
+    <div class="top-nav">
+        <div class="nav-links">
+            <a href="privacy-policy.html">Priv</a>
             <a href="contact.html">Contact</a>
+        </div>
+        <h1 class="site-title">ElementalBox</h1>
+        <div class="nav-links">
+            <!-- Space for additional links on right side -->
         </div>
     </div>
     
-    <div class="container">
-        <div class="content">
-            <h1>Privacy Policy</h1>
-            
-            <div class="policy-content">
-                <p><strong>Last Updated: April 3, 2025</strong></p>
-                
-                <h2>Our Commitment to Your Privacy</h2>
-                <p>
-                    We are committed to ensuring the privacy and security of all visitors to ElementalBox. This privacy policy outlines our practices regarding data collection and use.
-                </p>
-                
-                <h2>Data Collection</h2>
-                <p>
-                    <strong>ElementalBox does not collect any personal data from its users.</strong> 
-                    We do not track your activity, store cookies for tracking purposes, or collect any personal information.
-                </p>
-                
-                <h2>How the Application Works</h2>
-                <p>
-                    ElementalBox is a particle sandbox that runs entirely in your browser. Any data created during your 
-                    session (such as saved simulations) is stored locally on your device using your browser's local storage 
-                    feature and is not transmitted to our servers.
-                </p>
-                
-                <h2>Third-Party Services</h2>
-                <p>
-                    ElementalBox may display advertisements through third-party ad providers. These providers may use cookies 
-                    or similar technologies for ad targeting and measurement. This is standard practice for ad-supported 
-                    applications and websites. The information collected by these third parties is subject to their own 
-                    privacy policies.
-                </p>
-                
-                <h2>Changes to This Policy</h2>
-                <p>
-                    We may update this privacy policy from time to time. Any changes will be posted on this page.
-                </p>
-                
-                <h2>Contact Us</h2>
-                <p>
-                    If you have any questions about this privacy policy or our data practices, please contact us using our 
-                    <a href="contact.html">contact form</a>.
-                </p>
-            </div>
+    <div class="layout-container">
+        <!-- UI Controls Section (left side in landscape, bottom in portrait) -->
+        <div class="ui-controls">
+            <h2>UI</h2>
+            <!-- UI controls can be added here -->
+            <p>Privacy Settings</p>
+            <p>Cookie Controls</p>
         </div>
         
-        <div class="footer">
-            <p>&copy; 2025 ElementalBox. All rights reserved.</p>
+        <div class="content-wrapper">
+            <!-- Main Content Area -->
+            <div class="main-content">
+                <h1>Privacy Policy</h1>
+                
+                <div class="content-box">
+                    <p><strong>Last Updated: April 3, 2025</strong></p>
+                    
+                    <h2>Our Commitment to Your Privacy</h2>
+                    <p>
+                        We are committed to ensuring the privacy and security of all visitors to ElementalBox. This privacy policy outlines our practices regarding data collection and use.
+                    </p>
+                    
+                    <h2>Data Collection</h2>
+                    <p>
+                        <strong>ElementalBox does not collect any personal data from its users.</strong> 
+                        We do not track your activity, store cookies for tracking purposes, or collect any personal information.
+                    </p>
+                    
+                    <h2>How the Application Works</h2>
+                    <p>
+                        ElementalBox is a particle sandbox that runs entirely in your browser. Any data created during your 
+                        session (such as saved simulations) is stored locally on your device using your browser's local storage 
+                        feature and is not transmitted to our servers.
+                    </p>
+                    
+                    <h2>Third-Party Services</h2>
+                    <p>
+                        ElementalBox may display advertisements through third-party ad providers. These providers may use cookies 
+                        or similar technologies for ad targeting and measurement. This is standard practice for ad-supported 
+                        applications and websites. The information collected by these third parties is subject to their own 
+                        privacy policies.
+                    </p>
+                    
+                    <h2>Changes to This Policy</h2>
+                    <p>
+                        We may update this privacy policy from time to time. Any changes will be posted on this page.
+                    </p>
+                    
+                    <h2>Contact Us</h2>
+                    <p>
+                        If you have any questions about this privacy policy or our data practices, please contact us using our 
+                        <a href="contact.html">contact form</a>.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Gameplay Section (right in landscape, middle in portrait) -->
+            <div class="gameplay">
+                Gameplay
+            </div>
         </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+        <p>&copy; 2025 ElementalBox. All rights reserved.</p>
     </div>
     
     <script>
