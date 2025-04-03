@@ -305,6 +305,11 @@
             padding: 10px;
             text-align: center;
             z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            min-height: 50px;
         }
         
         #content-container {
@@ -1218,6 +1223,46 @@
             height: 500px !important;
         }
         
+        /* Header fix for PWA installed mode */
+        body.pwa-installed #header {
+            position: sticky !important;
+            top: 0 !important;
+            width: 100% !important;
+            z-index: 100 !important;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            flex-wrap: wrap !important;
+            min-height: 50px !important;
+            padding: 10px !important;
+        }
+        
+        body.pwa-installed #app-container {
+            height: 100% !important;
+            flex-direction: column !important;
+        }
+        
+        body.pwa-installed #content-container {
+            flex: 1 !important;
+            flex-direction: row !important;
+            height: calc(100% - 60px) !important; /* Adjust based on header height */
+        }
+        
+        body.pwa-installed #toolbar {
+            width: 300px !important;
+            height: 100% !important;
+            max-height: none !important;
+            overflow-y: scroll !important;
+            border-right: 1px solid #333 !important;
+            border-bottom: none !important;
+        }
+        
+        body.pwa-installed #canvas-container {
+            height: 100% !important;
+            flex: 1 !important;
+        }
+        
         /* Media query override for PWA - force desktop layout regardless of screen width */
         @media (max-width: 768px) {
             body.pwa-installed #app-container,
@@ -1230,12 +1275,29 @@
                 all: revert !important;
             }
             
+            body.pwa-installed #header {
+                position: sticky !important;
+                top: 0 !important;
+                width: 100% !important;
+                z-index: 100 !important;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                flex-wrap: wrap !important;
+                min-height: 50px !important;
+                padding: 10px !important;
+            }
+            
             body.pwa-installed #app-container {
-                flex-direction: row !important;
+                height: 100% !important;
+                flex-direction: column !important;
             }
             
             body.pwa-installed #content-container {
+                flex: 1 !important;
                 flex-direction: row !important;
+                height: calc(100% - 60px) !important; /* Adjust based on header height */
             }
             
             body.pwa-installed #toolbar {
@@ -1249,6 +1311,7 @@
             
             body.pwa-installed #canvas-container {
                 height: 100% !important;
+                flex: 1 !important;
             }
         }
     </style>
