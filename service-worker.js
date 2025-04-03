@@ -12,6 +12,8 @@ const CACHE_FILES = [
   '/privacy-policy.html',
   '/contact.html',
   '/protocol-handler.html',
+  '/pwa-features.html',
+  '/pwa-detection.html',
   '/styles.css',
   '/main.js',
   '/manifest.json',
@@ -181,6 +183,27 @@ self.addEventListener('notificationclick', function(event) {
   event.waitUntil(
     clients.openWindow('/')
   );
+});
+
+// Add message event handling for PWA feature detection
+self.addEventListener('message', function(event) {
+  console.log('[ElementalBox SW] Message received:', event.data);
+  
+  if (event.data && event.data.action === 'getPWAFeatures') {
+    // Respond with all supported PWA features
+    event.ports[0].postMessage({
+      pwaFeatures: {
+        offlineSupport: true,
+        backgroundSync: true,
+        periodicBackgroundSync: true,
+        pushNotifications: true
+      }
+    });
+  }
+  
+  if (event.data && event.data.action === 'skipWaiting') {
+    self.skipWaiting();
+  }
 });
 
 // Development helper - log to know the service worker is running

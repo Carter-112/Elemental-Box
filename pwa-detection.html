@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElementalBox PWA Detection</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00a8ff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ElementalBox">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    
+    <!-- PWA Builder Service Worker Registration -->
+    <script src="pwabuilder-sw-register.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        
+        h1 {
+            color: #00a8ff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .detection-box {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .feature-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            background-color: #2a2a2a;
+        }
+        
+        .feature-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+            text-align: center;
+        }
+        
+        .feature-name {
+            font-weight: bold;
+            margin-right: 10px;
+            min-width: 220px;
+        }
+        
+        .status-unknown {
+            color: #888888;
+        }
+        
+        .status-supported {
+            color: #4CAF50;
+        }
+        
+        .status-unsupported {
+            color: #F44336;
+        }
+        
+        .status-active {
+            color: #2196F3;
+        }
+        
+        .detection-code {
+            background-color: #2a2a2a;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        
+        .debug-info {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 40px;
+            color: #00a8ff;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .update-button {
+            background-color: #00a8ff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        
+        .update-button:hover {
+            background-color: #0077cc;
+        }
+    </style>
+</head>
+<body>
+    <h1>ElementalBox PWA Detection</h1>
+    
+    <div class="detection-box">
+        <h2>PWA Builder Detection</h2>
+        <p>This page helps test if PWA Builder can detect the PWA features in ElementalBox.</p>
+        
+        <ul class="feature-list" id="pwa-features">
+            <li class="feature-item">
+                <div class="feature-icon">🛠️</div>
+                <div class="feature-name">Service Worker</div>
+                <div class="feature-status status-unknown">Checking...</div>
+            </li>
+            <li class="feature-item">
+                <div class="feature-icon">📱</div>
+                <div class="feature-name">Installable (Manifest)</div>
+                <div class="feature-status status-unknown">Checking...</div>
+            </li>
+            <li class="feature-item">
+                <div class="feature-icon">📶</div>
+                <div class="feature-name">Offline Support</div>
+                <div class="feature-status status-unknown">Checking...</div>
+            </li>
+            <li class="feature-item">
+                <div class="feature-icon">🔄</div>
+                <div class="feature-name">Background Sync</div>
+                <div class="feature-status status-unknown">Checking...</div>
+            </li>
+            <li class="feature-item">
+                <div class="feature-icon">⏱️</div>
+                <div class="feature-name">Periodic Background Sync</div>
+                <div class="feature-status status-unknown">Checking...</div>
+            </li>
+            <li class="feature-item">
+                <div class="feature-icon">🔔</div>
+                <div class="feature-name">Push Notifications</div>
+                <div class="feature-status status-unknown">Checking...</div>
+            </li>
+            <li class="feature-item">
+                <div class="feature-icon">🔗</div>
+                <div class="feature-name">Protocol Handler</div>
+                <div class="feature-status status-unknown">Checking...</div>
+            </li>
+            <li class="feature-item">
+                <div class="feature-icon">📂</div>
+                <div class="feature-name">File Handler</div>
+                <div class="feature-status status-unknown">Checking...</div>
+            </li>
+            <li class="feature-item">
+                <div class="feature-icon">📤</div>
+                <div class="feature-name">Share Target</div>
+                <div class="feature-status status-unknown">Checking...</div>
+            </li>
+        </ul>
+        
+        <button id="update-status" class="update-button">Update Status</button>
+    </div>
+    
+    <div class="detection-box">
+        <h2>Service Worker Information</h2>
+        <div id="sw-status">Checking service worker status...</div>
+        
+        <div id="sw-details" class="debug-info"></div>
+    </div>
+    
+    <div class="detection-box">
+        <h2>Manifest Information</h2>
+        <div id="manifest-status">Checking manifest...</div>
+        
+        <div id="manifest-details" class="debug-info"></div>
+    </div>
+    
+    <a href="index.html" class="back-link">Back to ElementalBox</a>
+    
+    <script>
+        // Helper function to update the status display
+        function updateStatus(featureName, status, details = '') {
+            const featureItems = document.querySelectorAll('.feature-item');
+            for (const item of featureItems) {
+                const nameElement = item.querySelector('.feature-name');
+                if (nameElement && nameElement.textContent === featureName) {
+                    const statusElement = item.querySelector('.feature-status');
+                    statusElement.textContent = status;
+                    
+                    // Update status class
+                    statusElement.classList.remove('status-unknown', 'status-supported', 'status-unsupported', 'status-active');
+                    if (status.includes('Supported') || status.includes('Active')) {
+                        statusElement.classList.add('status-supported');
+                    } else if (status.includes('Not supported') || status.includes('Not found')) {
+                        statusElement.classList.add('status-unsupported');
+                    } else if (status.includes('Activated')) {
+                        statusElement.classList.add('status-active');
+                    } else {
+                        statusElement.classList.add('status-unknown');
+                    }
+                    
+                    break;
+                }
+            }
+        }
+        
+        // Check service worker registration
+        function checkServiceWorker() {
+            const swStatus = document.getElementById('sw-status');
+            const swDetails = document.getElementById('sw-details');
+            
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    if (registrations.length > 0) {
+                        updateStatus('Service Worker', 'Active');
+                        swStatus.textContent = `Service Worker is active (${registrations.length} registration(s))`;
+                        
+                        let detailsText = '<h3>Registered Service Workers:</h3><ul>';
+                        registrations.forEach(function(registration, index) {
+                            detailsText += `<li>Registration #${index + 1}:<br>`;
+                            detailsText += `- Scope: ${registration.scope}<br>`;
+                            detailsText += `- Update state: ${registration.updateViaCache}<br>`;
+                            
+                            if (registration.active) {
+                                detailsText += `- Active worker: ✓<br>`;
+                                detailsText += `- Script URL: ${registration.active.scriptURL}<br>`;
+                            } else {
+                                detailsText += `- Active worker: ✗<br>`;
+                            }
+                            
+                            if (registration.installing) {
+                                detailsText += `- Installing worker: ✓<br>`;
+                            }
+                            
+                            if (registration.waiting) {
+                                detailsText += `- Waiting worker: ✓<br>`;
+                            }
+                            
+                            detailsText += `</li>`;
+                        });
+                        
+                        detailsText += '</ul>';
+                        swDetails.innerHTML = detailsText;
+                    } else {
+                        updateStatus('Service Worker', 'Not found');
+                        swStatus.textContent = 'No service worker registrations found';
+                        swDetails.textContent = 'No service worker details available.';
+                    }
+                })
+                .catch(function(error) {
+                    updateStatus('Service Worker', 'Error');
+                    swStatus.textContent = 'Error checking service worker registrations';
+                    swDetails.textContent = `Error: ${error.message}`;
+                });
+            } else {
+                updateStatus('Service Worker', 'Not supported');
+                swStatus.textContent = 'Service Workers are not supported in this browser';
+                swDetails.textContent = 'Browser does not support Service Workers API.';
+            }
+        }
+        
+        // Check web app manifest
+        function checkManifest() {
+            const manifestStatus = document.getElementById('manifest-status');
+            const manifestDetails = document.getElementById('manifest-details');
+            
+            if ('getInstalledRelatedApps' in navigator) {
+                navigator.getInstalledRelatedApps()
+                .then(function(relatedApps) {
+                    if (relatedApps.length > 0) {
+                        manifestStatus.textContent = 'App is installed!';
+                    } else {
+                        manifestStatus.textContent = 'App is not installed as a PWA.';
+                    }
+                })
+                .catch(function(error) {
+                    manifestStatus.textContent = `Error checking installation: ${error.message}`;
+                });
+            }
+            
+            // Check for manifest
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            if (manifestLink) {
+                updateStatus('Installable (Manifest)', 'Supported');
+                
+                fetch(manifestLink.href)
+                .then(response => response.json())
+                .then(data => {
+                    manifestStatus.textContent = `Manifest found: ${data.name} v${data.version || 'unknown'}`;
+                    
+                    // Check for features in manifest
+                    if (data.protocol_handler) {
+                        updateStatus('Protocol Handler', 'Supported');
+                    }
+                    
+                    if (data.file_handlers) {
+                        updateStatus('File Handler', 'Supported');
+                    }
+                    
+                    if (data.share_target) {
+                        updateStatus('Share Target', 'Supported');
+                    }
+                    
+                    // Display manifest details
+                    manifestDetails.innerHTML = `<h3>Manifest Content:</h3><pre style="white-space: pre-wrap;">${JSON.stringify(data, null, 2)}</pre>`;
+                })
+                .catch(error => {
+                    manifestStatus.textContent = `Error loading manifest: ${error.message}`;
+                    manifestDetails.textContent = 'Could not load manifest details.';
+                });
+            } else {
+                updateStatus('Installable (Manifest)', 'Not found');
+                manifestStatus.textContent = 'No manifest link found';
+                manifestDetails.textContent = 'The page does not include a link to a web app manifest.';
+            }
+        }
+        
+        // Check PWA features through service worker
+        function checkPWAFeatures() {
+            // Check if any service worker is active
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                // Create a message channel to communicate with the service worker
+                const messageChannel = new MessageChannel();
+                
+                messageChannel.port1.onmessage = function(event) {
+                    const data = event.data;
+                    
+                    if (data.pwaFeatures) {
+                        // Update UI with feature status
+                        if (data.pwaFeatures.offlineSupport) {
+                            updateStatus('Offline Support', 'Activated');
+                        }
+                        
+                        if (data.pwaFeatures.backgroundSync) {
+                            updateStatus('Background Sync', 'Activated');
+                        }
+                        
+                        if (data.pwaFeatures.periodicBackgroundSync) {
+                            updateStatus('Periodic Background Sync', 'Activated');
+                        }
+                        
+                        if (data.pwaFeatures.pushNotifications) {
+                            updateStatus('Push Notifications', 'Activated');
+                        }
+                    } else {
+                        console.log('Received message from service worker:', data);
+                    }
+                };
+                
+                // Ask the service worker about PWA features
+                navigator.serviceWorker.controller.postMessage(
+                    { action: 'getPWAFeatures' },
+                    [messageChannel.port2]
+                );
+            }
+            
+            // Check for feature support in browser
+            if ('SyncManager' in window) {
+                updateStatus('Background Sync', 'Supported');
+            } else {
+                updateStatus('Background Sync', 'Not supported');
+            }
+            
+            if ('serviceWorker' in navigator && 'periodicSync' in navigator.serviceWorker) {
+                updateStatus('Periodic Background Sync', 'Supported');
+            } else {
+                updateStatus('Periodic Background Sync', 'Not supported');
+            }
+            
+            if ('PushManager' in window) {
+                updateStatus('Push Notifications', 'Supported');
+            } else {
+                updateStatus('Push Notifications', 'Not supported');
+            }
+        }
+        
+        // Function to test offline capability
+        function testOfflineSupport() {
+            if ('caches' in window) {
+                caches.has('elementalbox-pwa-cache-v1')
+                .then(function(hasCache) {
+                    if (hasCache) {
+                        updateStatus('Offline Support', 'Active (Cache found)');
+                    } else {
+                        updateStatus('Offline Support', 'Supported (No cache yet)');
+                    }
+                })
+                .catch(function(error) {
+                    updateStatus('Offline Support', 'Error checking cache');
+                });
+            } else {
+                updateStatus('Offline Support', 'Not supported');
+            }
+        }
+        
+        // Run checks when page loads
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                checkServiceWorker();
+                checkManifest();
+                checkPWAFeatures();
+                testOfflineSupport();
+            }, 1000);
+        });
+        
+        // Update button click handler
+        document.getElementById('update-status').addEventListener('click', function() {
+            checkServiceWorker();
+            checkManifest();
+            checkPWAFeatures();
+            testOfflineSupport();
+        });
+    </script>
+</body>
+</html> 

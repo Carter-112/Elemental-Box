@@ -13,90 +13,33 @@
     <meta name="apple-mobile-web-app-title" content="ElementalBox">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     
-    <!-- Immediate Service Worker Registration - simplified for detection -->
+    <!-- PWA Builder Service Worker Registration -->
+    <script src="pwabuilder-sw-register.js"></script>
+    
+    <!-- Original Service Worker Registration (kept as fallback) -->
     <script>
+        // The original service worker registration is kept as a fallback,
+        // but it won't register if the PWA Builder service worker is already active
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js', {scope: '/'})
-                .then(function(reg) {
-                    console.log('Service worker registered with scope: ' + reg.scope);
-                })
-                .catch(function(error) {
-                    console.log('Service worker registration failed: ' + error);
-                });
+            navigator.serviceWorker.getRegistration().then(function(registration) {
+                // Only register the original service worker if no service worker is active
+                if (!registration) {
+                    navigator.serviceWorker.register('service-worker.js', {scope: '/'})
+                        .then(function(reg) {
+                            console.log('Original Service worker registered with scope: ' + reg.scope);
+                        })
+                        .catch(function(error) {
+                            console.log('Original Service worker registration failed: ' + error);
+                        });
+                }
+            });
         }
     </script>
     
     <!-- Separate script for service worker features -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.ready.then(function(registration) {
-                    // Request notification permission
-                    if ('Notification' in window) {
-                        Notification.requestPermission().then(function(permission) {
-                            if (permission === 'granted') {
-                                console.log('Notification permission granted');
-                                
-                                // Subscribe to push notifications if available
-                                if ('PushManager' in window) {
-                                    registration.pushManager.subscribe({
-                                        userVisibleOnly: true,
-                                        applicationServerKey: urlBase64ToUint8Array(
-                                            'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
-                                        )
-                                    }).then(function(subscription) {
-                                        // Here you would typically send this subscription to your server
-                                        console.log('User is subscribed to push notifications');
-                                    }).catch(function(err) {
-                                        console.error('Push subscription error:', err);
-                                    });
-                                }
-                            }
-                        });
-                    }
-                    
-                    // Register for background sync if available
-                    if ('sync' in registration) {
-                        document.addEventListener('userDataChanged', function() {
-                            registration.sync.register('sync-user-data')
-                                .then(function() { console.log('Background sync registered'); })
-                                .catch(function(err) { console.error('Background sync registration failed:', err); });
-                        });
-                    }
-                    
-                    // Register for periodic sync if available
-                    if ('periodicSync' in registration) {
-                        navigator.permissions.query({name: 'periodic-background-sync'})
-                            .then(function(status) {
-                                if (status.state === 'granted') {
-                                    registration.periodicSync.register('update-content', {
-                                        minInterval: 24 * 60 * 60 * 1000 // Once per day
-                                    }).then(function() {
-                                        console.log('Periodic background sync registered');
-                                    });
-                                }
-                            }).catch(function(error) {
-                                console.error('Periodic background sync registration error:', error);
-                            });
-                    }
-                });
-            }
-            
-            // Convert base64 to Uint8Array for VAPID public key
-            function urlBase64ToUint8Array(base64String) {
-                const padding = '='.repeat((4 - base64String.length % 4) % 4);
-                const base64 = (base64String + padding)
-                    .replace(/\-/g, '+')
-                    .replace(/_/g, '/');
-                
-                const rawData = window.atob(base64);
-                const outputArray = new Uint8Array(rawData.length);
-                
-                for (let i = 0; i < rawData.length; ++i) {
-                    outputArray[i] = rawData.charCodeAt(i);
-                }
-                return outputArray;
-            }
+            // Feature detection is handled by the pwabuilder-sw-register.js script
         });
     </script>
     

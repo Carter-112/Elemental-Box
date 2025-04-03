@@ -3,6 +3,7 @@
   "name": "ElementalBox",
   "short_name": "ElementalBox",
   "description": "A particle sandbox simulation game",
+  "version": "1.2.0",
   "start_url": "/index.html",
   "scope": "/",
   "scope_extensions": [
