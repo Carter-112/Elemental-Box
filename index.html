@@ -13,16 +13,27 @@
     <meta name="apple-mobile-web-app-title" content="ElementalBox">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     
-    <!-- Immediate Service Worker Registration -->
+    <!-- Immediate Service Worker Registration - simplified for detection -->
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js', {scope: '/'})
-                .then(registration => {
-                    console.log('Service Worker registered with scope:', registration.scope);
-                    
+            navigator.serviceWorker.register('service-worker.js', {scope: '/'})
+                .then(function(reg) {
+                    console.log('Service worker registered with scope: ' + reg.scope);
+                })
+                .catch(function(error) {
+                    console.log('Service worker registration failed: ' + error);
+                });
+        }
+    </script>
+    
+    <!-- Separate script for service worker features -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(function(registration) {
                     // Request notification permission
                     if ('Notification' in window) {
-                        Notification.requestPermission().then(permission => {
+                        Notification.requestPermission().then(function(permission) {
                             if (permission === 'granted') {
                                 console.log('Notification permission granted');
                                 
@@ -33,10 +44,10 @@
                                         applicationServerKey: urlBase64ToUint8Array(
                                             'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
                                         )
-                                    }).then(subscription => {
+                                    }).then(function(subscription) {
                                         // Here you would typically send this subscription to your server
                                         console.log('User is subscribed to push notifications');
-                                    }).catch(err => {
+                                    }).catch(function(err) {
                                         console.error('Push subscription error:', err);
                                     });
                                 }
@@ -46,32 +57,30 @@
                     
                     // Register for background sync if available
                     if ('sync' in registration) {
-                        document.addEventListener('userDataChanged', () => {
+                        document.addEventListener('userDataChanged', function() {
                             registration.sync.register('sync-user-data')
-                                .then(() => console.log('Background sync registered'))
-                                .catch(err => console.error('Background sync registration failed:', err));
+                                .then(function() { console.log('Background sync registered'); })
+                                .catch(function(err) { console.error('Background sync registration failed:', err); });
                         });
                     }
                     
                     // Register for periodic sync if available
                     if ('periodicSync' in registration) {
                         navigator.permissions.query({name: 'periodic-background-sync'})
-                            .then(status => {
+                            .then(function(status) {
                                 if (status.state === 'granted') {
                                     registration.periodicSync.register('update-content', {
                                         minInterval: 24 * 60 * 60 * 1000 // Once per day
-                                    }).then(() => {
+                                    }).then(function() {
                                         console.log('Periodic background sync registered');
                                     });
                                 }
-                            }).catch(error => {
+                            }).catch(function(error) {
                                 console.error('Periodic background sync registration error:', error);
                             });
                     }
-                })
-                .catch(error => {
-                    console.error('Service Worker registration failed:', error);
                 });
+            }
             
             // Convert base64 to Uint8Array for VAPID public key
             function urlBase64ToUint8Array(base64String) {
@@ -88,7 +97,7 @@
                 }
                 return outputArray;
             }
-        }
+        });
     </script>
     
     <style>

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElementalBox - Service Worker Registration Test</title>
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00a8ff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ElementalBox">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        
+        h1 {
+            color: #00a8ff;
+        }
+        
+        .status-box {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        
+        .status-success {
+            background-color: rgba(46, 204, 113, 0.2);
+            border-left: 4px solid #2ecc71;
+        }
+        
+        .status-error {
+            background-color: rgba(231, 76, 60, 0.2);
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .status-pending {
+            background-color: rgba(241, 196, 15, 0.2);
+            border-left: 4px solid #f1c40f;
+        }
+        
+        button {
+            background-color: #00a8ff;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background-color: #0088cc;
+        }
+        
+        pre {
+            background-color: #2a2a2a;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>ElementalBox Service Worker Test Page</h1>
+    <p>This page tests if the Service Worker is properly registered and if PWA features are available.</p>
+    
+    <div id="service-worker-status" class="status-box status-pending">
+        <h2>Service Worker Status: Checking...</h2>
+        <p id="sw-info">Verifying if service worker is registered...</p>
+    </div>
+    
+    <div id="offline-status" class="status-box status-pending">
+        <h2>Offline Support: Checking...</h2>
+        <p id="offline-info">Verifying if offline support is available...</p>
+    </div>
+    
+    <div id="push-status" class="status-box status-pending">
+        <h2>Push Notifications: Checking...</h2>
+        <p id="push-info">Verifying if push notifications are supported...</p>
+        <button id="push-perm-btn">Request Permission</button>
+    </div>
+    
+    <div id="sync-status" class="status-box status-pending">
+        <h2>Background Sync: Checking...</h2>
+        <p id="sync-info">Verifying if background sync is supported...</p>
+    </div>
+    
+    <div id="periodic-status" class="status-box status-pending">
+        <h2>Periodic Background Sync: Checking...</h2>
+        <p id="periodic-info">Verifying if periodic background sync is supported...</p>
+    </div>
+    
+    <script>
+        // Check Service Worker registration
+        function checkServiceWorker() {
+            const swStatus = document.getElementById('service-worker-status');
+            const swInfo = document.getElementById('sw-info');
+            
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(function(registration) {
+                        swStatus.className = "status-box status-success";
+                        swInfo.textContent = `Service Worker registered successfully with scope: ${registration.scope}`;
+                        console.log('Service Worker registered with scope:', registration.scope);
+                        
+                        // Once SW is registered, check for other features
+                        checkOfflineSupport();
+                        checkPushSupport();
+                        checkSyncSupport();
+                        checkPeriodicSyncSupport();
+                    })
+                    .catch(function(error) {
+                        swStatus.className = "status-box status-error";
+                        swInfo.textContent = `Service Worker registration failed: ${error}`;
+                        console.error('Service Worker registration failed:', error);
+                    });
+            } else {
+                swStatus.className = "status-box status-error";
+                swInfo.textContent = "Service Workers are not supported in this browser.";
+            }
+        }
+        
+        // Check offline support
+        function checkOfflineSupport() {
+            const offlineStatus = document.getElementById('offline-status');
+            const offlineInfo = document.getElementById('offline-info');
+            
+            if ('caches' in window) {
+                caches.has('elementalbox-cache-v1')
+                    .then(function(result) {
+                        if (result) {
+                            offlineStatus.className = "status-box status-success";
+                            offlineInfo.textContent = "Offline support is available and cache exists.";
+                        } else {
+                            offlineStatus.className = "status-box status-pending";
+                            offlineInfo.textContent = "Cache API is available but elementalbox-cache-v1 not found yet.";
+                        }
+                    })
+                    .catch(function(error) {
+                        offlineStatus.className = "status-box status-error";
+                        offlineInfo.textContent = `Error checking cache: ${error}`;
+                    });
+            } else {
+                offlineStatus.className = "status-box status-error";
+                offlineInfo.textContent = "Cache API is not supported in this browser.";
+            }
+        }
+        
+        // Check push notification support
+        function checkPushSupport() {
+            const pushStatus = document.getElementById('push-status');
+            const pushInfo = document.getElementById('push-info');
+            const pushPermBtn = document.getElementById('push-perm-btn');
+            
+            if ('Notification' in window && 'PushManager' in window) {
+                if (Notification.permission === 'granted') {
+                    pushStatus.className = "status-box status-success";
+                    pushInfo.textContent = "Push notifications are supported and permission granted.";
+                    pushPermBtn.style.display = "none";
+                } else if (Notification.permission === 'denied') {
+                    pushStatus.className = "status-box status-error";
+                    pushInfo.textContent = "Push notifications are supported but permission denied.";
+                } else {
+                    pushStatus.className = "status-box status-pending";
+                    pushInfo.textContent = "Push notifications are supported. Please grant permission.";
+                    
+                    pushPermBtn.addEventListener('click', function() {
+                        Notification.requestPermission().then(function(permission) {
+                            if (permission === 'granted') {
+                                pushStatus.className = "status-box status-success";
+                                pushInfo.textContent = "Push notifications are supported and permission granted.";
+                                pushPermBtn.style.display = "none";
+                            } else {
+                                pushStatus.className = "status-box status-error";
+                                pushInfo.textContent = "Permission denied for push notifications.";
+                            }
+                        });
+                    });
+                }
+            } else {
+                pushStatus.className = "status-box status-error";
+                pushInfo.textContent = "Push notifications are not supported in this browser.";
+                pushPermBtn.style.display = "none";
+            }
+        }
+        
+        // Check background sync support
+        function checkSyncSupport() {
+            const syncStatus = document.getElementById('sync-status');
+            const syncInfo = document.getElementById('sync-info');
+            
+            if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                navigator.serviceWorker.ready.then(function(registration) {
+                    if ('sync' in registration) {
+                        syncStatus.className = "status-box status-success";
+                        syncInfo.textContent = "Background Sync is supported in this browser.";
+                    } else {
+                        syncStatus.className = "status-box status-error";
+                        syncInfo.textContent = "Background Sync API exists but not available in registration.";
+                    }
+                });
+            } else {
+                syncStatus.className = "status-box status-error";
+                syncInfo.textContent = "Background Sync is not supported in this browser.";
+            }
+        }
+        
+        // Check periodic background sync support
+        function checkPeriodicSyncSupport() {
+            const periodicStatus = document.getElementById('periodic-status');
+            const periodicInfo = document.getElementById('periodic-info');
+            
+            if ('serviceWorker' in navigator && 'PeriodicSyncManager' in window) {
+                navigator.serviceWorker.ready.then(function(registration) {
+                    if ('periodicSync' in registration) {
+                        periodicStatus.className = "status-box status-success";
+                        periodicInfo.textContent = "Periodic Background Sync is supported in this browser.";
+                    } else {
+                        periodicStatus.className = "status-box status-error";
+                        periodicInfo.textContent = "Periodic Sync API exists but not available in registration.";
+                    }
+                });
+            } else {
+                periodicStatus.className = "status-box status-error";
+                periodicInfo.textContent = "Periodic Background Sync is not supported in this browser.";
+            }
+        }
+        
+        // Run checks when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            checkServiceWorker();
+        });
+    </script>
+</body>
+</html> 
