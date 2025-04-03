@@ -382,7 +382,7 @@ function resetSandbox(clearStorage = false) {
     
     // Clear localStorage if requested
     if (clearStorage) {
-        localStorage.removeItem('elementalBoxState');
+        localStorage.removeItem('elementabox_save'); // Fix: use the correct localStorage key
         showNotification('Sandbox and saved data cleared', 'info');
     } else {
         showNotification('Sandbox cleared', 'info');
@@ -429,8 +429,11 @@ let lastMousePos = null;
 let currentElement = 'sand'; // Default element
 let brushSize = 6; // Default brush size
 let overrideMode = false;
+window.overrideMode = overrideMode; // Make it available globally
 let noBoundariesMode = false; // New setting for removing floor/ceiling
+window.noBoundariesMode = noBoundariesMode; // Make it available globally
 let frameCounter = 0;
+// let isPaused = false; // Removed - now using window.isPaused with debug tracking
 let lastFpsUpdate = 0;
 let lastSpawnTime = 0;
 const spawnIntervalMs = 100;
@@ -460,13 +463,14 @@ function initializeGrid() {
 
 // Check if coordinates are within bounds
 function isInBounds(x, y) {
-    // When no-boundaries mode is enabled, allow particles to fall through floor and ceiling
-    if (noBoundariesMode) {
-        // Only check horizontal bounds
-        return x >= 0 && x < gridWidth;
+    // Basic horizontal bounds checking (always enforced)
+    if (x < 0 || x >= gridWidth) {
+        return false;
     }
-    // Standard bounds checking
-    return x >= 0 && x < gridWidth && y >= 0 && y < gridHeight;
+    
+    // When no-boundaries mode is enabled, allow vertical out-of-bounds
+    // We only check if y is within current grid array bounds to avoid errors
+    return y >= 0 && y < gridHeight;
 }
 
 /*
@@ -581,7 +585,7 @@ function update() {
     if (noBoundariesMode) {
         // Check for particles that have moved below the bottom boundary
         for (let x = 0; x < gridWidth; x++) {
-            // Remove particles that fall below the grid
+            // Handle bottom boundary (remove particles that would fall through)
             if (grid[gridHeight-1] && grid[gridHeight-1][x]) {
                 const particle = grid[gridHeight-1][x];
                 // Only remove particles that would naturally fall (not static elements)
@@ -592,7 +596,7 @@ function update() {
                 }
             }
             
-            // Remove particles that rise above the grid
+            // Handle top boundary (remove particles that would rise above)
             if (grid[0] && grid[0][x]) {
                 const particle = grid[0][x];
                 // Only remove particles that would naturally rise (gases, heat effects)
@@ -600,6 +604,26 @@ function update() {
                     (particle.type === 'heat-effect' || 
                      (particle.velocityY && particle.velocityY < 0)))) {
                     grid[0][x] = null;
+                }
+            }
+        }
+    } else {
+        // In bounded mode, ensure no particle tries to escape the grid
+        // Collect upward-moving particles at the top
+        for (let x = 0; x < gridWidth; x++) {
+            if (grid[0] && grid[0][x]) {
+                const particle = grid[0][x];
+                if (particle.isGas) {
+                    // Keep gases at the top boundary instead of removing them
+                    if (Math.random() < 0.1) {
+                        // Allow gases to move laterally at the top
+                        const direction = Math.random() < 0.5 ? -1 : 1;
+                        const newX = x + direction;
+                        if (newX >= 0 && newX < gridWidth && !grid[0][newX]) {
+                            grid[0][newX] = particle;
+                            grid[0][x] = null;
+                        }
+                    }
                 }
             }
         }
@@ -2263,6 +2287,7 @@ function setupUIControls() {
             
             // Toggle the state
             noBoundariesMode = !noBoundariesMode;
+            window.noBoundariesMode = noBoundariesMode; // Update global variable
             
             // Update button appearance
             updateNoBoundariesButtonState();
@@ -2290,13 +2315,44 @@ function setupUIControls() {
         }
     }
     
-    // Override toggle
-    const overrideToggle = document.getElementById('override-toggle');
-    if (overrideToggle) {
-        overrideToggle.checked = overrideMode;
-        overrideToggle.addEventListener('change', function() {
-            overrideMode = this.checked;
+    // Override toggle (now a button)
+    const overrideBtn = document.getElementById('override-btn');
+    if (overrideBtn) {
+        // Update button appearance based on current state
+        updateOverrideButtonState();
+        
+        overrideBtn.addEventListener('click', function(event) {
+            // Prevent the event from affecting other components
+            event.stopPropagation();
+            
+            // Toggle the state
+            overrideMode = !overrideMode;
+            window.overrideMode = overrideMode; // Update global variable
+            
+            // Update button appearance
+            updateOverrideButtonState();
+            
+            // Display notification to inform the user
+            showNotification(overrideMode ? 
+                'Override mode enabled' : 
+                'Override mode disabled', 'info');
+                
+            console.log(`Override mode ${overrideMode ? 'enabled' : 'disabled'}`);
         });
+    }
+    
+    // Helper function to update override button appearance
+    function updateOverrideButtonState() {
+        const btn = document.getElementById('override-btn');
+        if (btn) {
+            if (overrideMode) {
+                btn.textContent = "Disable Override";
+                btn.classList.add('active');
+            } else {
+                btn.textContent = "Override Elements";
+                btn.classList.remove('active');
+            }
+        }
     }
 }
 

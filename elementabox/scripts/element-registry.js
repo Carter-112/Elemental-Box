@@ -189,23 +189,71 @@ class ElementRegistry {
         };
     }
     
-    // Create a new particle of specified type
-    createParticle(elementType, x, y) {
-        const element = this.getElement(elementType);
+    // Create a new particle of the given element type
+    createElement(elementName) {
+        const element = this.elements[elementName];
         if (!element) {
-            console.error(`Element type "${elementType}" not found`);
+            console.error(`Element type '${elementName}' not found in registry`);
             return null;
         }
         
-        // Get default properties
+        // Create a basic particle with standard properties
         const particle = {
-            ...this.getElementDefaults(elementType),
+            type: elementName,
+            color: element.defaultColor || '#FFFFFF',
             processed: false
         };
+        
+        // Copy properties from the element definition
+        if (element.density !== undefined) particle.density = element.density;
+        if (element.isGas !== undefined) particle.isGas = element.isGas;
+        if (element.isLiquid !== undefined) particle.isLiquid = element.isLiquid;
+        if (element.isPowder !== undefined) particle.isPowder = element.isPowder;
+        if (element.isSolid !== undefined) particle.isSolid = element.isSolid;
+        if (element.isStatic !== undefined) particle.isStatic = element.isStatic;
+        if (element.hasGravity !== undefined) particle.hasGravity = element.hasGravity;
+        if (element.isSpawner !== undefined) particle.isSpawner = element.isSpawner;
+        if (element.isElectrical !== undefined) particle.isElectrical = element.isElectrical;
+        if (element.flammable !== undefined) particle.flammable = element.flammable;
+        if (element.conductive !== undefined) particle.conductive = element.conductive;
+        if (element.explosive !== undefined) particle.explosive = element.explosive;
+        if (element.reactive !== undefined) particle.reactive = element.reactive;
+        if (element.corrosive !== undefined) particle.corrosive = element.corrosive;
+        if (element.temperature !== undefined) particle.temperature = element.temperature;
+        
+        // Force solid objects to be static if not powder
+        if (particle.isSolid && !particle.isPowder) {
+            particle.isStatic = true;
+            particle.hasGravity = false;
+        }
         
         // Apply any element-specific initialization
         if (element.updateOnCreate) {
             return element.updateOnCreate(particle);
+        }
+        
+        return particle;
+    }
+    
+    // Create a particle at a specific location (used by UI interactions)
+    createParticle(elementType, x, y) {
+        console.log(`Creating particle: ${elementType} at ${x}, ${y}`);
+        const particle = this.createElement(elementType);
+        if (!particle) return null;
+        
+        // Make sure the grid exists
+        if (!this.grid) {
+            console.error('Grid not initialized in ElementRegistry');
+            return null;
+        }
+        
+        // Place the particle in the grid if coordinates are provided
+        if (x !== undefined && y !== undefined) {
+            if (y >= 0 && y < this.grid.length && 
+                x >= 0 && x < this.grid[y].length) {
+                this.grid[y][x] = particle;
+                return particle;
+            }
         }
         
         return particle;
@@ -220,6 +268,10 @@ class ElementRegistry {
         
         // Process environmental effects
         this.applyEnvironmentalEffects(isInBounds, getRandomCell);
+        
+        // Get the no-boundaries mode from window
+        const noBoundariesMode = window.noBoundariesMode || false;
+        console.log(`ProcessParticles running, noBoundariesMode=${noBoundariesMode}`);
         
         // Process each particle in the grid (from bottom to top for gravity-like simulation)
         for (let y = this.grid.length - 1; y >= 0; y--) {
@@ -276,14 +328,24 @@ class ElementRegistry {
         // Skip if grid is not initialized
         if (!this.grid) return;
         
+        // Get the no-boundaries mode from window
+        const noBoundariesMode = window.noBoundariesMode || false;
+        
         // Apply gravity to any remaining particles that didn't handle their own gravity
         for (let y = this.grid.length - 2; y >= 0; y--) {
             for (let x = 0; x < this.grid[y].length; x++) {
                 const particle = this.grid[y][x];
                 if (!particle) continue;
                 
-                // Only apply to particles that should be affected by gravity but weren't processed
-                if ((particle.isLiquid || particle.isPowder || particle.hasGravity) && !particle.processed) {
+                // In no-boundaries mode, be more aggressive with gravity
+                const shouldApplyGravity = noBoundariesMode ? 
+                    // In no-boundaries mode, apply gravity to more particles
+                    (particle.isLiquid || particle.isPowder || particle.isGas || particle.hasGravity) :
+                    // In normal mode, only apply to particles that should be affected by gravity
+                    (particle.isLiquid || particle.isPowder || particle.hasGravity);
+                
+                // Apply gravity if appropriate
+                if (shouldApplyGravity && !particle.processed) {
                     // Move down if possible
                     if (!this.grid[y + 1][x]) {
                         this.grid[y + 1][x] = particle;

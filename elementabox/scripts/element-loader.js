@@ -279,8 +279,17 @@ const ElementLoader = {
     createParticle: function(type = null) {
         const elementType = type || this.activeElement;
         
+        console.log(`ElementLoader.createParticle called for: ${elementType}`);
+        
         // Create the particle using the ElementRegistry
-        const particle = window.ElementRegistry ? window.ElementRegistry.createParticle(elementType) : null;
+        const particle = window.ElementRegistry ? window.ElementRegistry.createElement(elementType) : null;
+        
+        if (particle) {
+            console.log(`Created particle of type: ${elementType}`);
+        } else {
+            console.error(`Failed to create particle of type: ${elementType}`);
+        }
+        
         return particle;
     },
     
@@ -298,13 +307,15 @@ const ElementLoader = {
             }
         }
         
-        // Get the override checkbox state
-        const overrideMode = document.getElementById('override-toggle')?.checked || false;
+        // Get the override mode from the global state
+        const overrideMode = window.overrideMode || false;
         
         const radius = Math.floor(this.brushSize / 2);
         const activeType = type || this.activeElement;
         const gridCenterX = Math.floor(centerX);
         const gridCenterY = Math.floor(centerY);
+        
+        console.log(`Creating particles with brush: ${activeType} at ${gridCenterX},${gridCenterY}, radius ${radius}`);
         
         // Special handling for eraser - always override
         const isEraser = activeType === 'eraser';
@@ -341,9 +352,10 @@ const ElementLoader = {
                 // If override is not enabled, only place if cell is empty
                 if (!overrideMode && grid[gridY][gridX] !== null) continue;
                 
-                // Create and place the particle
+                // Create the particle using ElementRegistry.createElement
                 const particle = this.createParticle(activeType);
                 if (particle) {
+                    // Place it directly in the grid
                     grid[gridY][gridX] = particle;
                 }
             }

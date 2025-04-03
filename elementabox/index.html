@@ -124,18 +124,15 @@
             color: white;
         }
         
-        #override-container {
-            display: flex;
-            align-items: center;
-            margin: 10px 0;
-        }
-        
+        #override-container,
         #no-boundaries-container {
             margin: 10px 0;
+            width: 100%;
         }
         
-        #override-toggle {
-            margin-right: 10px;
+        #override-btn,
+        #no-boundaries-btn {
+            width: 100%;
         }
         
         .top-controls {
@@ -756,8 +753,7 @@
                     <span id="brush-size-value">6</span>
                 </div>
                 <div id="override-container">
-                    <input type="checkbox" id="override-toggle">
-                    <label for="override-toggle">Override Elements</label>
+                    <button id="override-btn" class="action-btn">Override Elements</button>
                 </div>
                 <div id="no-boundaries-container">
                     <button id="no-boundaries-btn" class="action-btn">Remove Floor/Ceiling</button>
