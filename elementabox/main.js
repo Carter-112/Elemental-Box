@@ -203,6 +203,8 @@ function getStickiness(type) {
 // Autosave functionality
 let lastAutosaveTime = 0;
 let pendingAutosave = null;
+let lastGridState = null;
+let lastUIState = null;
 
 // Autosave debounce function
 function scheduleAutosave() {
@@ -222,9 +224,26 @@ function scheduleAutosave() {
 function saveToLocalStorage() {
     try {
         const gridData = serializeGrid();
-        localStorage.setItem('elementabox_save', JSON.stringify(gridData));
-        lastAutosaveTime = Date.now();
-        console.log('Simulation saved to localStorage');
+        const uiData = serializeUI();
+        
+        // Check if there are actual changes before saving
+        const gridDataStr = JSON.stringify(gridData);
+        const uiDataStr = JSON.stringify(uiData);
+        
+        if (gridDataStr !== lastGridState || uiDataStr !== lastUIState) {
+            // Save both grid and UI data
+            const saveData = {
+                grid: gridData,
+                ui: uiData,
+                timestamp: Date.now()
+            };
+            
+            localStorage.setItem('elementabox_save', JSON.stringify(saveData));
+            lastAutosaveTime = Date.now();
+            lastGridState = gridDataStr;
+            lastUIState = uiDataStr;
+            console.log('Simulation and UI saved to localStorage');
+        }
     } catch (error) {
         console.error('Failed to save simulation:', error);
     }
@@ -235,15 +254,102 @@ function loadFromLocalStorage() {
     try {
         const savedData = localStorage.getItem('elementabox_save');
         if (savedData) {
-            const gridData = JSON.parse(savedData);
-            deserializeGrid(gridData);
-            console.log('Simulation loaded from localStorage');
+            const parsedData = JSON.parse(savedData);
+            
+            // Handle both old format (just grid) and new format (grid + UI)
+            if (parsedData.grid) {
+                // New format
+                deserializeGrid(parsedData.grid);
+                deserializeUI(parsedData.ui);
+                lastGridState = JSON.stringify(parsedData.grid);
+                lastUIState = JSON.stringify(parsedData.ui);
+                console.log('Simulation and UI loaded from localStorage');
+            } else {
+                // Old format (backward compatibility)
+                deserializeGrid(parsedData);
+                lastGridState = JSON.stringify(parsedData);
+                console.log('Simulation loaded from localStorage (legacy format)');
+            }
             return true;
         }
     } catch (error) {
         console.error('Failed to load simulation:', error);
     }
     return false;
+}
+
+// Serialize the UI state
+function serializeUI() {
+    return {
+        currentElement: currentElement,
+        brushSize: brushSize,
+        paused: paused,
+        currentEnvTool: currentEnvTool,
+        windDirection: windDirection,
+        envToolStrength: envToolStrength,
+        noBoundaries: noBoundaries,
+        overrideGravity: overrideGravity,
+        enableShadows: enableShadows,
+        showSleepingParticles: showSleepingParticles
+    };
+}
+
+// Deserialize and restore the UI
+function deserializeUI(uiData) {
+    if (!uiData) return;
+    
+    // Restore UI settings
+    currentElement = uiData.currentElement || 'sand';
+    brushSize = uiData.brushSize || 5;
+    paused = uiData.paused || false;
+    currentEnvTool = uiData.currentEnvTool || null;
+    windDirection = uiData.windDirection || 'right';
+    envToolStrength = uiData.envToolStrength || 5;
+    noBoundaries = uiData.noBoundaries || false;
+    overrideGravity = uiData.overrideGravity || false;
+    enableShadows = uiData.enableShadows !== undefined ? uiData.enableShadows : true;
+    showSleepingParticles = uiData.showSleepingParticles !== undefined ? uiData.showSleepingParticles : true;
+    
+    // Update UI elements to reflect the loaded state
+    const elementButtons = document.querySelectorAll('.element-button');
+    elementButtons.forEach(button => {
+        button.classList.toggle('selected', button.dataset.element === currentElement);
+    });
+    
+    const envButtons = document.querySelectorAll('.env-tool');
+    envButtons.forEach(button => {
+        button.classList.toggle('selected', button.dataset.tool === currentEnvTool);
+    });
+    
+    document.getElementById('brush-size').value = brushSize;
+    document.getElementById('brush-size-value').textContent = brushSize;
+    
+    document.getElementById('env-strength').value = envToolStrength;
+    document.getElementById('env-strength-value').textContent = envToolStrength;
+    
+    document.getElementById('wind-direction').value = windDirection;
+    
+    document.getElementById('pause-button').textContent = paused ? '▶ Play' : '⏸ Pause';
+    
+    const noBoundariesButton = document.getElementById('no-boundaries');
+    if (noBoundariesButton) {
+        noBoundariesButton.classList.toggle('active', noBoundaries);
+    }
+    
+    const overrideGravityButton = document.getElementById('override-gravity');
+    if (overrideGravityButton) {
+        overrideGravityButton.classList.toggle('active', overrideGravity);
+    }
+    
+    const shadowsToggle = document.getElementById('shadows-toggle');
+    if (shadowsToggle) {
+        shadowsToggle.checked = enableShadows;
+    }
+    
+    const sleepingToggle = document.getElementById('sleeping-toggle');
+    if (sleepingToggle) {
+        sleepingToggle.checked = showSleepingParticles;
+    }
 }
 
 // Serialize the grid for saving
@@ -2182,12 +2288,17 @@ function init() {
 
 // Wait until all scripts are loaded before initializing
 document.addEventListener('DOMContentLoaded', function() {
-    // Removed the setTimeout, call init directly when DOM is ready
-    // setTimeout(init, 100);
+    // Initialize the game
     init(); 
     
     // Set up UI control buttons
     setupUIControls();
+    
+    // Save state when page is about to be unloaded (refresh/close)
+    window.addEventListener('beforeunload', function() {
+        // Save immediately rather than scheduling
+        saveToLocalStorage();
+    });
 });
 
 // Add function to set up UI control buttons
@@ -2241,6 +2352,9 @@ function setupUIControls() {
             pauseBtn.title = window.isPaused ? 'Resume simulation' : 'Pause simulation';
             
             console.log(`Simulation ${window.isPaused ? 'paused' : 'resumed'}`);
+            
+            // Save UI state
+            scheduleAutosave();
         });
     }
     
@@ -2263,6 +2377,7 @@ function setupUIControls() {
         importFile.addEventListener('change', function(e) {
             if (e.target.files.length > 0) {
                 importFromJson(e.target.files[0]);
+                scheduleAutosave();
             }
         });
     }
@@ -2282,77 +2397,138 @@ function setupUIControls() {
         updateNoBoundariesButtonState();
         
         noBoundariesBtn.addEventListener('click', function(event) {
-            // Prevent the event from affecting other components
+            // Prevent event from affecting other UI
             event.stopPropagation();
             
-            // Toggle the state
-            noBoundariesMode = !noBoundariesMode;
-            window.noBoundariesMode = noBoundariesMode; // Update global variable
+            // Toggle no-boundaries mode
+            noBoundaries = !noBoundaries;
             
-            // Update button appearance
+            // Update button state
             updateNoBoundariesButtonState();
             
-            // Display notification to inform the user
-            showNotification(noBoundariesMode ? 
-                'Floor and ceiling removed' : 
-                'Floor and ceiling restored', 'info');
-                
-            console.log(`No-boundaries mode ${noBoundariesMode ? 'enabled' : 'disabled'}`);
+            // Save UI state
+            scheduleAutosave();
         });
     }
     
-    // Helper function to update no-boundaries button appearance
-    function updateNoBoundariesButtonState() {
-        const btn = document.getElementById('no-boundaries-btn');
-        if (btn) {
-            if (noBoundariesMode) {
-                btn.textContent = "Restore Floor/Ceiling";
-                btn.classList.add('active');
+    // Element buttons
+    const elementButtons = document.querySelectorAll('.element-button');
+    elementButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove selected class from all buttons
+            elementButtons.forEach(btn => btn.classList.remove('selected'));
+            
+            // Add selected class to clicked button
+            this.classList.add('selected');
+            
+            // Update current element
+            currentElement = this.dataset.element;
+            
+            // Save UI state
+            scheduleAutosave();
+        });
+    });
+    
+    // Environmental tool buttons
+    const envButtons = document.querySelectorAll('.env-tool');
+    envButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // If this button is already selected, deselect it
+            if (this.classList.contains('selected')) {
+                this.classList.remove('selected');
+                currentEnvTool = null;
             } else {
-                btn.textContent = "Remove Floor/Ceiling";
-                btn.classList.remove('active');
+                // Remove selected class from all buttons
+                envButtons.forEach(btn => btn.classList.remove('selected'));
+                
+                // Add selected class to clicked button
+                this.classList.add('selected');
+                
+                // Update current tool
+                currentEnvTool = this.dataset.tool;
             }
-        }
+            
+            // Save UI state
+            scheduleAutosave();
+        });
+    });
+    
+    // Brush size slider
+    const brushSizeSlider = document.getElementById('brush-size');
+    if (brushSizeSlider) {
+        brushSizeSlider.addEventListener('input', function() {
+            brushSize = parseInt(this.value);
+            document.getElementById('brush-size-value').textContent = brushSize;
+            
+            // Save UI state
+            scheduleAutosave();
+        });
     }
     
-    // Override toggle (now a button)
-    const overrideBtn = document.getElementById('override-btn');
+    // Environmental tool strength slider
+    const envStrengthSlider = document.getElementById('env-strength');
+    if (envStrengthSlider) {
+        envStrengthSlider.addEventListener('input', function() {
+            envToolStrength = parseInt(this.value);
+            document.getElementById('env-strength-value').textContent = envToolStrength;
+            
+            // Save UI state
+            scheduleAutosave();
+        });
+    }
+    
+    // Wind direction dropdown
+    const windDirectionSelect = document.getElementById('wind-direction');
+    if (windDirectionSelect) {
+        windDirectionSelect.addEventListener('change', function() {
+            windDirection = this.value;
+            
+            // Save UI state
+            scheduleAutosave();
+        });
+    }
+    
+    // Override gravity button
+    const overrideBtn = document.getElementById('override-gravity-btn');
     if (overrideBtn) {
         // Update button appearance based on current state
         updateOverrideButtonState();
         
         overrideBtn.addEventListener('click', function(event) {
-            // Prevent the event from affecting other components
+            // Prevent event from affecting other UI
             event.stopPropagation();
             
-            // Toggle the state
-            overrideMode = !overrideMode;
-            window.overrideMode = overrideMode; // Update global variable
+            // Toggle override mode
+            overrideGravity = !overrideGravity;
             
-            // Update button appearance
+            // Update button state
             updateOverrideButtonState();
             
-            // Display notification to inform the user
-            showNotification(overrideMode ? 
-                'Override mode enabled' : 
-                'Override mode disabled', 'info');
-                
-            console.log(`Override mode ${overrideMode ? 'enabled' : 'disabled'}`);
+            // Save UI state
+            scheduleAutosave();
         });
     }
     
-    // Helper function to update override button appearance
-    function updateOverrideButtonState() {
-        const btn = document.getElementById('override-btn');
-        if (btn) {
-            if (overrideMode) {
-                btn.textContent = "Disable Override";
-                btn.classList.add('active');
-            } else {
-                btn.textContent = "Override Elements";
-                btn.classList.remove('active');
-            }
-        }
+    // Shadows toggle
+    const shadowsToggle = document.getElementById('shadows-toggle');
+    if (shadowsToggle) {
+        shadowsToggle.addEventListener('change', function() {
+            enableShadows = this.checked;
+            
+            // Save UI state
+            scheduleAutosave();
+        });
+    }
+    
+    // Sleeping particles toggle
+    const sleepingToggle = document.getElementById('sleeping-toggle');
+    if (sleepingToggle) {
+        sleepingToggle.addEventListener('change', function() {
+            showSleepingParticles = this.checked;
+            
+            // Save UI state
+            scheduleAutosave();
+        });
     }
 }
 
@@ -2451,6 +2627,34 @@ function updateParticleCount() {
     const countElement = document.getElementById('particle-count'); // Assumes <span id="particle-count"></span> exists
     if (countElement) {
         countElement.textContent = `Particles: ${count}`;
+    }
+}
+
+// Helper function to update no-boundaries button appearance
+function updateNoBoundariesButtonState() {
+    const btn = document.getElementById('no-boundaries-btn');
+    if (btn) {
+        if (noBoundaries) {
+            btn.textContent = "Restore Floor/Ceiling";
+            btn.classList.add('active');
+        } else {
+            btn.textContent = "Remove Floor/Ceiling";
+            btn.classList.remove('active');
+        }
+    }
+}
+
+// Helper function to update override button appearance
+function updateOverrideButtonState() {
+    const btn = document.getElementById('override-gravity-btn');
+    if (btn) {
+        if (overrideGravity) {
+            btn.textContent = "Disable Override";
+            btn.classList.add('active');
+        } else {
+            btn.textContent = "Override Elements";
+            btn.classList.remove('active');
+        }
     }
 }
 

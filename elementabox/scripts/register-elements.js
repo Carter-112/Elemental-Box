@@ -123,3 +123,4 @@ document.addEventListener('DOMContentLoaded', registerAllElements);
 
 // Export the function in case it needs to be called manually
 window.registerAllElements = registerAllElements; 
+ 
