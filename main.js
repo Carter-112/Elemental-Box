@@ -21,6 +21,12 @@ let currentEnvTool = null;
 let activeEnvironmentTool = null; // Wind, heat, cold
 let windDirection = 'right'; // For wind: 'left', 'right', 'up', 'down'
 let envToolStrength = 5; // Default strength
+let noBoundaries = false; // Add missing noBoundaries variable
+let overrideGravity = false; // Add missing overrideGravity variable
+let enableShadows = true; // Default shadow setting
+window.enableShadows = enableShadows; // Make available globally
+let showSleepingParticles = true; // Default sleeping particles setting
+window.showSleepingParticles = showSleepingParticles; // Make available globally
 
 // Debug variables to track pause state changes
 let _isPaused = false;
@@ -283,7 +289,7 @@ function serializeUI() {
     return {
         currentElement: currentElement,
         brushSize: brushSize,
-        paused: paused,
+        paused: window.isPaused, // Fixed: using window.isPaused instead of paused
         currentEnvTool: currentEnvTool,
         windDirection: windDirection,
         envToolStrength: envToolStrength,
@@ -301,14 +307,20 @@ function deserializeUI(uiData) {
     // Restore UI settings
     currentElement = uiData.currentElement || 'sand';
     brushSize = uiData.brushSize || 5;
-    paused = uiData.paused || false;
+    window.isPaused = uiData.paused || false; // Fixed: using window.isPaused instead of paused
     currentEnvTool = uiData.currentEnvTool || null;
     windDirection = uiData.windDirection || 'right';
     envToolStrength = uiData.envToolStrength || 5;
     noBoundaries = uiData.noBoundaries || false;
+    noBoundariesMode = noBoundaries; // Sync with noBoundaries
+    window.noBoundariesMode = noBoundaries; // Update global
     overrideGravity = uiData.overrideGravity || false;
+    overrideMode = overrideGravity; // Sync with overrideGravity
+    window.overrideMode = overrideMode; // Update global
     enableShadows = uiData.enableShadows !== undefined ? uiData.enableShadows : true;
+    window.enableShadows = enableShadows; // Update global
     showSleepingParticles = uiData.showSleepingParticles !== undefined ? uiData.showSleepingParticles : true;
+    window.showSleepingParticles = showSleepingParticles; // Update global
     
     // Update UI elements to reflect the loaded state
     const elementButtons = document.querySelectorAll('.element-button');
@@ -329,7 +341,7 @@ function deserializeUI(uiData) {
     
     document.getElementById('wind-direction').value = windDirection;
     
-    document.getElementById('pause-button').textContent = paused ? '▶ Play' : '⏸ Pause';
+    document.getElementById('pause-button').textContent = window.isPaused ? '▶ Play' : '⏸ Pause';
     
     const noBoundariesButton = document.getElementById('no-boundaries');
     if (noBoundariesButton) {
@@ -387,57 +399,283 @@ function serializeGrid() {
 
 // Deserialize and restore the grid
 function deserializeGrid(gridData) {
-    // Clear the grid first
-    initializeGrid();
+    if (!gridData || !gridData.cells) {
+        console.error('Invalid grid data format:', gridData);
+        throw new Error('The imported file has an invalid grid data format');
+    }
     
-    // Restore particles
+    // Clear the grid first
+    for (let y = 0; y < gridHeight; y++) {
+        for (let x = 0; x < gridWidth; x++) {
+            grid[y][x] = null;
+        }
+    }
+    
+    // Handle potential grid size differences between save and current
+    const importWidth = gridData.width || gridWidth;
+    const importHeight = gridData.height || gridHeight;
+    
+    // Scale factor for adapting different grid sizes
+    const scaleX = gridWidth / importWidth;
+    const scaleY = gridHeight / importHeight;
+    
+    // Show warning if grid sizes don't match
+    if (importWidth !== gridWidth || importHeight !== gridHeight) {
+        console.warn(`Imported grid size (${importWidth}x${importHeight}) differs from current grid (${gridWidth}x${gridHeight}). Adapting...`);
+        showNotification('Grid sizes differ - adapting imported data', 'info');
+    }
+    
+    // Restore particles with scaling if needed
     gridData.cells.forEach(cell => {
-        if (isInBounds(cell.x, cell.y)) {
-            const particle = new Particle(cell.type, cell.color);
+        // Apply scaling to adapt to current grid size
+        const scaledX = Math.floor(cell.x * scaleX);
+        const scaledY = Math.floor(cell.y * scaleY);
+        
+        if (isInBounds(scaledX, scaledY)) {
+            let particle;
             
-            // Restore properties
-            particle.temperature = cell.temperature;
-            particle.burning = cell.burning;
-            particle.burnDuration = cell.burnDuration;
-            particle.activated = cell.activated;
-            particle.potency = cell.potency;
-            particle.flammable = cell.flammable;
-            particle.durability = cell.durability;
-            particle.stableCounter = cell.stableCounter;
+            // Try to create particle using ElementRegistry if available
+            if (window.ElementRegistry && typeof window.ElementRegistry.createParticle === 'function') {
+                particle = window.ElementRegistry.createParticle(cell.type);
+                
+                // Fall back to basic Particle if ElementRegistry couldn't create it
+                if (!particle) {
+                    particle = new Particle(cell.type, cell.color || getDefaultColor(cell.type));
+                }
+            } else {
+                particle = new Particle(cell.type, cell.color || getDefaultColor(cell.type));
+            }
             
-            grid[cell.y][cell.x] = particle;
+            // Restore properties if they exist in the saved data
+            if (cell.temperature !== undefined) particle.temperature = cell.temperature;
+            if (cell.burning !== undefined) particle.burning = cell.burning;
+            if (cell.burnDuration !== undefined) particle.burnDuration = cell.burnDuration;
+            if (cell.activated !== undefined) particle.activated = cell.activated;
+            if (cell.potency !== undefined) particle.potency = cell.potency;
+            if (cell.flammable !== undefined) particle.flammable = cell.flammable;
+            if (cell.durability !== undefined) particle.durability = cell.durability;
+            if (cell.stableCounter !== undefined) particle.stableCounter = cell.stableCounter;
+            
+            // Assign to grid at the (potentially scaled) position
+            grid[scaledY][scaledX] = particle;
         }
     });
+    
+    // Force a redraw
+    drawParticles();
 }
 
-// Export the current simulation to a JSON file
+// Export simulation to a JSON file
 function exportToJson() {
-    const gridData = serializeGrid();
-    const dataStr = JSON.stringify(gridData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = 'elementabox_save.json';
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-    
-    showNotification('Simulation exported successfully!');
+    try {
+        // Show exporting notification and visual feedback
+        showNotification('Preparing export...', 'info');
+        
+        // Add visual indicator that export is in progress
+        const exportBtn = document.getElementById('export-btn');
+        if (exportBtn) {
+            const originalText = exportBtn.textContent;
+            exportBtn.textContent = 'Exporting...';
+            exportBtn.disabled = true;
+            
+            // Restore button after a short delay
+            setTimeout(() => {
+                exportBtn.textContent = originalText || 'Export';
+                exportBtn.disabled = false;
+            }, 2000);
+        }
+        
+        // Get particle count for metadata
+        let particleCount = 0;
+        for (let y = 0; y < gridHeight; y++) {
+            for (let x = 0; x < gridWidth; x++) {
+                if (grid[y][x] !== null) {
+                    particleCount++;
+                }
+            }
+        }
+        
+        // Create metadata with app and export info
+        const metadata = {
+            appName: 'ElementalBox',
+            version: '1.0', 
+            exportDate: new Date().toISOString(),
+            gridSize: {
+                width: gridWidth,
+                height: gridHeight,
+                cellSize: CELL_SIZE
+            },
+            particleCount: particleCount
+        };
+        
+        // Create a complete export with grid, UI state and metadata
+        const exportData = {
+            grid: serializeGrid(),
+            ui: serializeUI(),
+            metadata: metadata
+        };
+        
+        // Convert to JSON
+        const jsonData = JSON.stringify(exportData, null, 2); // Pretty print with 2-space indentation
+        
+        // Generate a descriptive filename with date and time
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 19).replace(/[T:-]/g, '_').replace(/\./g, '_');
+        const filename = `elementabox_${dateStr}.json`;
+        
+        // Create data URI for download
+        const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(jsonData)}`;
+        
+        // Create and trigger download link
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', filename);
+        linkElement.style.display = 'none';
+        document.body.appendChild(linkElement);
+        linkElement.click();
+        document.body.removeChild(linkElement);
+        
+        showNotification(`Simulation exported as "${filename}"!`, 'success');
+    } catch (error) {
+        console.error('Export failed:', error);
+        showNotification(`Export failed: ${error.message}`, 'error');
+        
+        // Restore export button if there was an error
+        const exportBtn = document.getElementById('export-btn');
+        if (exportBtn) {
+            exportBtn.textContent = 'Export';
+            exportBtn.disabled = false;
+        }
+    }
 }
 
 // Import a simulation from a JSON file
 function importFromJson(file) {
+    if (!file) {
+        showNotification('No file selected for import', 'error');
+        return;
+    }
+
+    // Verify file type is JSON
+    if (!file.name.toLowerCase().endsWith('.json')) {
+        showNotification('Please select a valid JSON file', 'error');
+        return;
+    }
+    
+    // Check file size (limit to 5MB to prevent massive files)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+        showNotification(`File too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is 5MB.`, 'error');
+        return;
+    }
+    
     const reader = new FileReader();
+    
+    // Show loading notification and visual feedback
+    showNotification('Importing simulation...', 'info');
+    
+    // Add visual indicator that import is in progress
+    const importBtn = document.getElementById('import-btn');
+    if (importBtn) {
+        const originalText = importBtn.textContent;
+        importBtn.textContent = 'Importing...';
+        importBtn.disabled = true;
+    }
     
     reader.onload = function(event) {
         try {
-            const gridData = JSON.parse(event.target.result);
-            deserializeGrid(gridData);
-            showNotification('Simulation imported successfully!');
+            const importData = JSON.parse(event.target.result);
+            
+            // Validate imported data
+            if (!importData || typeof importData !== 'object') {
+                throw new Error('Invalid simulation data format');
+            }
+            
+            // Extract metadata if available
+            let metadataMessage = '';
+            if (importData.metadata) {
+                const meta = importData.metadata;
+                metadataMessage = `Imported from ${meta.appName || 'ElementalBox'} `;
+                
+                if (meta.exportDate) {
+                    // Format the date in a friendly way
+                    const exportDate = new Date(meta.exportDate);
+                    const formattedDate = exportDate.toLocaleDateString() + ' ' + exportDate.toLocaleTimeString();
+                    metadataMessage += `(exported on ${formattedDate})`;
+                }
+                
+                if (meta.gridSize && (meta.gridSize.width !== gridWidth || meta.gridSize.height !== gridHeight)) {
+                    metadataMessage += ` - Original grid size: ${meta.gridSize.width}x${meta.gridSize.height}`;
+                }
+                
+                console.log('Import metadata:', meta);
+            }
+            
+            // Clear current grid before importing
+            for (let y = 0; y < gridHeight; y++) {
+                for (let x = 0; x < gridWidth; x++) {
+                    grid[y][x] = null;
+                }
+            }
+            
+            // Import the grid data
+            if (importData.grid) {
+                deserializeGrid(importData.grid);
+                
+                // Import UI state if available
+                if (importData.ui) {
+                    try {
+                        deserializeUI(importData.ui);
+                    } catch (uiError) {
+                        console.warn('Could not restore UI state:', uiError);
+                        showNotification('Grid imported, but UI state could not be restored', 'warning');
+                    }
+                }
+            } else if (Array.isArray(importData) || (importData.cells && Array.isArray(importData.cells))) {
+                // Handle case where just the grid array was exported or old format
+                deserializeGrid(importData);
+                showNotification('Grid imported (legacy format - UI settings not restored)', 'info');
+            } else {
+                throw new Error('No valid grid data found in import file');
+            }
+            
+            // Force immediate redraw
+            drawParticles();
+            
+            // Update local storage with imported state
+            scheduleAutosave();
+            
+            // Show success notification with metadata info if available
+            const successMessage = metadataMessage 
+                ? `Simulation imported successfully! ${metadataMessage}` 
+                : `Simulation "${file.name}" imported successfully!`;
+            showNotification(successMessage, 'success');
+            
         } catch (error) {
             console.error('Failed to import simulation:', error);
-            showNotification('Failed to import simulation file!', 'error');
+            showNotification(`Import failed: ${error.message}`, 'error');
+        } finally {
+            // Reset the file input so the same file can be selected again if needed
+            const fileInput = document.getElementById('import-file');
+            if (fileInput) {
+                fileInput.value = '';
+            }
+            
+            // Restore import button
+            if (importBtn) {
+                importBtn.textContent = originalText || 'Import';
+                importBtn.disabled = false;
+            }
+        }
+    };
+    
+    reader.onerror = function() {
+        showNotification('Error reading the file', 'error');
+        
+        // Restore import button
+        if (importBtn) {
+            importBtn.textContent = 'Import';
+            importBtn.disabled = false;
         }
     };
     
@@ -459,17 +697,52 @@ function takeScreenshot() {
 // Show a notification message
 function showNotification(message, type = 'success') {
     const notification = document.getElementById('notification');
-    notification.textContent = message;
-    notification.style.display = 'block';
-    notification.style.backgroundColor = type === 'success' ? 'rgba(0, 128, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)';
+    if (!notification) return;
     
-    setTimeout(() => {
+    // Clear any existing timeout
+    if (window.notificationTimeout) {
+        clearTimeout(window.notificationTimeout);
+        clearTimeout(window.notificationFadeTimeout);
+    }
+    
+    // Set notification text
+    notification.textContent = message;
+    
+    // Set notification color based on type
+    switch (type) {
+        case 'error':
+            notification.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+            break;
+        case 'warning':
+            notification.style.backgroundColor = 'rgba(255, 165, 0, 0.8)';
+            break;
+        case 'info':
+            notification.style.backgroundColor = 'rgba(0, 128, 255, 0.8)';
+            break;
+        case 'success':
+        default:
+            notification.style.backgroundColor = 'rgba(0, 128, 0, 0.8)';
+            break;
+    }
+    
+    // Make notification visible
+    notification.style.display = 'block';
+    notification.style.opacity = '1';
+    
+    // Determine display duration based on type and message length
+    const baseDisplayTime = 2000; // 2 seconds base
+    const extraTimePerChar = 20; // 20ms per character
+    const extraTimeForType = type === 'error' ? 2000 : (type === 'warning' ? 1000 : 0);
+    const displayTime = baseDisplayTime + (message.length * extraTimePerChar) + extraTimeForType;
+    
+    // Set timeout for hiding notification
+    window.notificationTimeout = setTimeout(() => {
         notification.style.opacity = '0';
-        setTimeout(() => {
+        window.notificationFadeTimeout = setTimeout(() => {
             notification.style.display = 'none';
             notification.style.opacity = '1';
         }, 300);
-    }, 2000);
+    }, displayTime);
 }
 
 // Reset the sandbox
@@ -534,9 +807,9 @@ let isMouseDown = false;
 let lastMousePos = null;
 let currentElement = 'sand'; // Default element
 let brushSize = 6; // Default brush size
-let overrideMode = false;
+let overrideMode = overrideGravity; // Sync with overrideGravity
 window.overrideMode = overrideMode; // Make it available globally
-let noBoundariesMode = false; // New setting for removing floor/ceiling
+let noBoundariesMode = noBoundaries; // New setting for removing floor/ceiling, synced with noBoundaries
 window.noBoundariesMode = noBoundariesMode; // Make it available globally
 let frameCounter = 0;
 // let isPaused = false; // Removed - now using window.isPaused with debug tracking
@@ -879,17 +1152,17 @@ function resetProcessedFlags() {
     }
 }
 
-// Add necessary events for mouse interaction
+// Add necessary events for mouse and touch interaction
 function setupCanvasEvents() {
     if (!canvas) {
         // Try to get the existing canvas element
-        canvas = document.getElementById('canvas');
+        canvas = document.getElementById('sandbox');
         if (!canvas) {
             const container = document.getElementById('canvas-container');
             if (container) {
                 // Create a new canvas element if not found
                 canvas = document.createElement('canvas');
-                canvas.id = 'canvas';
+                canvas.id = 'sandbox';
                 container.appendChild(canvas);
             } else {
                 console.error("setupCanvasEvents: canvas is undefined, no container found, aborting event registration");
@@ -899,52 +1172,92 @@ function setupCanvasEvents() {
         ctx = canvas.getContext('2d');
     }
 
-    // Modify the mouse down event to start a repeated spawn timer
-    canvas.addEventListener('mousedown', function(e) {
-        e.preventDefault(); // Prevent default behavior
-        isMouseDown = true;
+    // Helper function to get position from both mouse and touch events
+    function getPointerPosition(e) {
+        // Determine if this is a touch or mouse event
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
         const scaleY = canvas.height / rect.height;
-        const exactX = ((e.clientX - rect.left) * scaleX) / CELL_SIZE;
-        const exactY = ((e.clientY - rect.top) * scaleY) / CELL_SIZE;
-        lastMousePos = { x: exactX, y: exactY };
-        // Optionally, spawn once immediately:
+        
+        return {
+            x: ((clientX - rect.left) * scaleX) / CELL_SIZE,
+            y: ((clientY - rect.top) * scaleY) / CELL_SIZE,
+            clientX, // Add raw clientX/Y for hit testing
+            clientY
+        };
+    }
+
+    // Handle pointer down (mouse or touch)
+    function handlePointerDown(e) {
+        // Only prevent default for events on the canvas to allow scrolling elsewhere
+        if (e.target === canvas) {
+            e.preventDefault();
+        }
+        
+        isMouseDown = true;
+        
+        const pos = getPointerPosition(e);
+        lastMousePos = pos;
+        
+        // Spawn particles immediately
         if (window.ElementLoader) {
-            window.ElementLoader.createParticlesWithBrush(exactX, exactY, grid, isInBounds);
+            window.ElementLoader.createParticlesWithBrush(pos.x, pos.y, grid, isInBounds);
             // Force immediate redraw to show particles even when paused
             drawParticles();
         }
-    });
-    
-    // Mouse move event - continue drawing if mouse is down
-    canvas.addEventListener('mousemove', function(e) {
-        e.preventDefault();
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const newX = ((e.clientX - rect.left) * scaleX) / CELL_SIZE;
-        const newY = ((e.clientY - rect.top) * scaleY) / CELL_SIZE;
+    }
+
+    // Handle pointer move (mouse or touch)
+    function handlePointerMove(e) {
+        // Only prevent default for events on the canvas to allow scrolling elsewhere
+        if (e.target === canvas) {
+            e.preventDefault();
+        }
+        
+        const pos = getPointerPosition(e);
+        
         if (isMouseDown && lastMousePos) {
-            interpolateLine(lastMousePos.x, lastMousePos.y, newX, newY);
+            interpolateLine(lastMousePos.x, lastMousePos.y, pos.x, pos.y);
             // Force redraw immediately to show changes when paused
             drawParticles();
         }
-        lastMousePos = { x: newX, y: newY };
-    });
-    
-    // Modify the mouse up event to clear the spawn interval
-    canvas.addEventListener('mouseup', function(e) {
-        e.preventDefault(); // Prevent default behavior
+        
+        lastMousePos = pos;
+    }
+
+    // Handle pointer up (mouse or touch)
+    function handlePointerUp(e) {
+        // Only prevent default for events on the canvas to allow scrolling elsewhere
+        if (e.target === canvas) {
+            e.preventDefault();
+        }
         isMouseDown = false;
-    });
-    
-    // Also clear the spawn interval on mouse leave
-    canvas.addEventListener('mouseleave', function(e) {
-        e.preventDefault(); // Prevent default behavior
+    }
+
+    // Handle pointer leave (mouse or touch)
+    function handlePointerLeave(e) {
+        // Only prevent default for events on the canvas to allow scrolling elsewhere
+        if (e.target === canvas) {
+            e.preventDefault();
+        }
         isMouseDown = false;
         lastMousePos = null;
-    });
+    }
+
+    // Mouse events
+    canvas.addEventListener('mousedown', handlePointerDown);
+    canvas.addEventListener('mousemove', handlePointerMove);
+    canvas.addEventListener('mouseup', handlePointerUp);
+    canvas.addEventListener('mouseleave', handlePointerLeave);
+    
+    // Touch events
+    canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+    canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+    canvas.addEventListener('touchend', handlePointerUp);
+    canvas.addEventListener('touchcancel', handlePointerLeave);
 }
 
 // Draw a line between two points using linear interpolation
@@ -2405,12 +2718,15 @@ function setupUIControls() {
         // Update button appearance based on current state
         updateNoBoundariesButtonState();
         
+        // Toggle no-boundaries mode
         noBoundariesBtn.addEventListener('click', function(event) {
             // Prevent event from affecting other UI
             event.stopPropagation();
             
             // Toggle no-boundaries mode
             noBoundaries = !noBoundaries;
+            noBoundariesMode = noBoundaries; // Sync the two variables
+            window.noBoundariesMode = noBoundaries; // Update global variable
             
             // Update button state
             updateNoBoundariesButtonState();
@@ -2498,7 +2814,7 @@ function setupUIControls() {
     }
     
     // Override gravity button
-    const overrideBtn = document.getElementById('override-gravity-btn');
+    const overrideBtn = document.getElementById('override-btn');
     if (overrideBtn) {
         // Update button appearance based on current state
         updateOverrideButtonState();
@@ -2509,6 +2825,8 @@ function setupUIControls() {
             
             // Toggle override mode
             overrideGravity = !overrideGravity;
+            overrideMode = overrideGravity; // Keep in sync
+            window.overrideMode = overrideMode; // Update global
             
             // Update button state
             updateOverrideButtonState();
@@ -2523,6 +2841,7 @@ function setupUIControls() {
     if (shadowsToggle) {
         shadowsToggle.addEventListener('change', function() {
             enableShadows = this.checked;
+            window.enableShadows = enableShadows; // Update global
             
             // Save UI state
             scheduleAutosave();
@@ -2534,6 +2853,7 @@ function setupUIControls() {
     if (sleepingToggle) {
         sleepingToggle.addEventListener('change', function() {
             showSleepingParticles = this.checked;
+            window.showSleepingParticles = showSleepingParticles; // Update global
             
             // Save UI state
             scheduleAutosave();
@@ -2680,7 +3000,7 @@ function updateNoBoundariesButtonState() {
 
 // Helper function to update override button appearance
 function updateOverrideButtonState() {
-    const btn = document.getElementById('override-gravity-btn');
+    const btn = document.getElementById('override-btn');
     if (btn) {
         if (overrideGravity) {
             btn.textContent = "Disable Override";

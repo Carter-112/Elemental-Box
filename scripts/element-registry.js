@@ -420,6 +420,12 @@ class ElementRegistry {
         const gridHeight = this.grid.length;
         const gridWidth = this.grid[0].length;
         
+        // Check if shadows are enabled from global setting
+        const shadowsEnabled = window.enableShadows !== undefined ? window.enableShadows : true;
+        
+        // Check if sleeping particles should be shown from global setting
+        const showSleepingParticles = window.showSleepingParticles !== undefined ? window.showSleepingParticles : true;
+        
         // Group particles by type/color to minimize context state changes
         const colorGroups = new Map();
         const specialRenders = [];
@@ -430,6 +436,11 @@ class ElementRegistry {
             for (let x = 0; x < gridWidth; x++) {
                 const particle = gridRow[x];
                 if (!particle) continue;
+                
+                // Skip sleeping particles if they should not be shown
+                if (!showSleepingParticles && particle.stableCounter && particle.stableCounter > 10) {
+                    continue;
+                }
                 
                 // Calculate pixel coordinates
                 const pixelX = Math.floor(x * CELL_SIZE);
