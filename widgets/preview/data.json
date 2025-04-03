@@ -1,0 +1,7 @@
+{
+  "logo": "/icons/icon-192x192.png",
+  "previewImage": "/screenshots/screen1.png",
+  "status": "Ready to create particles!",
+  "openUrl": "/index.html",
+  "newUrl": "/index.html?new=true"
+} 

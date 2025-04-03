@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElementalBox - File Handler</title>
+    <link rel="stylesheet" href="/styles.css">
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#00a8ff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ElementalBox">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
+    <style>
+        .handler-container {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #00a8ff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="handler-container">
+        <h1>Opening ElementalBox File</h1>
+        <p>Processing your simulation file...</p>
+        <div class="loading-spinner"></div>
+        <p id="status-message">Reading file contents...</p>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusEl = document.getElementById('status-message');
+            
+            // Register for file handling
+            if ('launchQueue' in window) {
+                window.launchQueue.setConsumer(async (launchParams) => {
+                    // Handle the file(s)
+                    if (!launchParams.files.length) {
+                        statusEl.textContent = 'No file provided.';
+                        redirectToMainApp();
+                        return;
+                    }
+                    
+                    const file = launchParams.files[0];
+                    statusEl.textContent = `Processing file: ${file.name}`;
+                    
+                    try {
+                        // Read the file content
+                        const fileContent = await file.text();
+                        
+                        // Try to parse as JSON
+                        const simData = JSON.parse(fileContent);
+                        
+                        // Check if it has expected properties of an ElementalBox simulation
+                        if (simData.particles || simData.elements) {
+                            statusEl.textContent = 'Valid simulation file detected. Loading...';
+                            
+                            // Store simulation data in session storage
+                            sessionStorage.setItem('loaded_simulation', fileContent);
+                            
+                            // Redirect to main app with query parameter to trigger loading
+                            setTimeout(() => {
+                                window.location.href = '/index.html?fileload=true';
+                            }, 1000);
+                        } else {
+                            statusEl.textContent = 'Invalid simulation file format.';
+                            redirectToMainApp();
+                        }
+                    } catch (error) {
+                        console.error('Error processing file:', error);
+                        statusEl.textContent = 'Error processing file. Invalid format.';
+                        redirectToMainApp();
+                    }
+                });
+            } else {
+                statusEl.textContent = 'File handling not supported in this browser.';
+                redirectToMainApp();
+            }
+            
+            function redirectToMainApp() {
+                setTimeout(() => {
+                    window.location.href = '/index.html';
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+</html> 

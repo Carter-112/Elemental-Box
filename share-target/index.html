@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElementalBox - Share Target</title>
+    <link rel="stylesheet" href="/styles.css">
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#00a8ff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ElementalBox">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
+    <style>
+        .share-container {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .share-header {
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #333;
+        }
+        
+        .share-content {
+            margin-bottom: 1.5rem;
+        }
+        
+        .share-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        
+        .share-button {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        .share-accept {
+            background-color: #00a8ff;
+            color: white;
+        }
+        
+        .share-cancel {
+            background-color: #444;
+            color: white;
+        }
+        
+        .share-field {
+            margin-bottom: 1rem;
+        }
+        
+        .share-field label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #aaa;
+        }
+        
+        .share-field-value {
+            padding: 0.5rem;
+            background-color: #333;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="share-container">
+        <div class="share-header">
+            <h1>Content Shared to ElementalBox</h1>
+            <p>You've shared content with the ElementalBox app.</p>
+        </div>
+        
+        <div class="share-content">
+            <div id="title-field" class="share-field">
+                <label>Title</label>
+                <div id="title-value" class="share-field-value"></div>
+            </div>
+            
+            <div id="text-field" class="share-field">
+                <label>Text</label>
+                <div id="text-value" class="share-field-value"></div>
+            </div>
+            
+            <div id="url-field" class="share-field">
+                <label>URL</label>
+                <div id="url-value" class="share-field-value"></div>
+            </div>
+        </div>
+        
+        <div class="share-actions">
+            <button id="cancel-btn" class="share-button share-cancel">Cancel</button>
+            <button id="open-btn" class="share-button share-accept">Open in ElementalBox</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get query parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const title = urlParams.get('title') || '';
+            const text = urlParams.get('text') || '';
+            const url = urlParams.get('url') || '';
+            
+            // Display shared content
+            document.getElementById('title-value').textContent = title;
+            document.getElementById('text-value').textContent = text;
+            document.getElementById('url-value').textContent = url;
+            
+            // Handle the Cancel button
+            document.getElementById('cancel-btn').addEventListener('click', function() {
+                window.location.href = '/index.html';
+            });
+            
+            // Handle the Open button
+            document.getElementById('open-btn').addEventListener('click', function() {
+                // Prepare data to be passed to the main app
+                let targetUrl = '/index.html';
+                
+                // If there's a URL, try to extract simulation data or parameters
+                if (url) {
+                    try {
+                        const parsedUrl = new URL(url);
+                        // Check if this is a ElementalBox simulation link
+                        if (parsedUrl.searchParams.has('sim')) {
+                            targetUrl += '?load=' + encodeURIComponent(parsedUrl.searchParams.get('sim'));
+                        }
+                    } catch (e) {
+                        console.error('Error parsing URL:', e);
+                    }
+                }
+                
+                // If there's text that looks like JSON, it might be a simulation export
+                if (text && text.trim().startsWith('{') && text.trim().endsWith('}')) {
+                    try {
+                        const simData = JSON.parse(text);
+                        // Check if it has expected properties of a simulation
+                        if (simData.particles || simData.elements) {
+                            // Store in sessionStorage and redirect
+                            sessionStorage.setItem('shared_simulation', text);
+                            targetUrl += '?shared=true';
+                        }
+                    } catch (e) {
+                        console.error('Error parsing JSON:', e);
+                    }
+                }
+                
+                window.location.href = targetUrl;
+            });
+        });
+    </script>
+</body>
+</html> 

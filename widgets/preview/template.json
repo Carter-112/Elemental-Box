@@ -1,0 +1,77 @@
+{
+  "schema": "https://developer.microsoft.com/json-schemas/adaptive-cards/adaptivecards-template-schema.json",
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "Container",
+      "style": "emphasis",
+      "items": [
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "auto",
+              "items": [
+                {
+                  "type": "Image",
+                  "url": "${logo}",
+                  "size": "small",
+                  "width": "30px",
+                  "height": "30px"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "ElementalBox",
+                  "weight": "bolder",
+                  "size": "medium"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "spacing": "medium",
+      "items": [
+        {
+          "type": "Image",
+          "url": "${previewImage}",
+          "horizontalAlignment": "center",
+          "width": "100%"
+        },
+        {
+          "type": "TextBlock",
+          "text": "${status}",
+          "wrap": true,
+          "spacing": "small",
+          "horizontalAlignment": "center"
+        }
+      ]
+    },
+    {
+      "type": "ActionSet",
+      "actions": [
+        {
+          "type": "Action.OpenUrl",
+          "title": "Open Simulation",
+          "url": "${openUrl}"
+        },
+        {
+          "type": "Action.OpenUrl",
+          "title": "New",
+          "url": "${newUrl}"
+        }
+      ]
+    }
+  ]
+} 
