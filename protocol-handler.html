@@ -96,54 +96,68 @@
         <div class="demo-section">
             <h2 class="demo-title">Try it out</h2>
             <p class="demo-description">
-                Click on the links below to test the custom protocol handler. The first time you click, your browser will ask if you want
+                Click on the links below to test the custom protocol handlers. The first time you click, your browser will ask if you want
                 to allow ElementalBox to handle these links.
             </p>
             
+            <h3>Experiment Protocol (web+elementalbox://)</h3>
             <a href="web+elementalbox://fire-simulation" class="protocol-link">Fire Simulation</a>
             <a href="web+elementalbox://water-flow" class="protocol-link">Water Flow</a>
             <a href="web+elementalbox://chemical-reaction" class="protocol-link">Chemical Reaction</a>
             
+            <h3>Recipe Protocol (web+elemrecipe://)</h3>
+            <a href="web+elemrecipe://water-and-fire" class="protocol-link">Water and Fire Recipe</a>
+            <a href="web+elemrecipe://salt-crystal" class="protocol-link">Salt Crystal Recipe</a>
+            <a href="web+elemrecipe://lava-lamp" class="protocol-link">Lava Lamp Recipe</a>
+            
             <div class="code-block">
-                &lt;a href="web+elementalbox://fire-simulation"&gt;Fire Simulation&lt;/a&gt;
+                &lt;a href="web+elementalbox://fire-simulation"&gt;Fire Simulation&lt;/a&gt;<br>
+                &lt;a href="web+elemrecipe://lava-lamp"&gt;Lava Lamp Recipe&lt;/a&gt;
             </div>
             
             <div class="note">
-                <p><strong>Note:</strong> For the protocol handler to work, you must first install ElementalBox as a PWA, and your browser must support custom protocol handlers.</p>
+                <p><strong>Note:</strong> For the protocol handlers to work, you must first install ElementalBox as a PWA, and your browser must support custom protocol handlers.</p>
             </div>
         </div>
         
         <div class="demo-section">
             <h2 class="demo-title">Creating Your Own Protocol Links</h2>
             <p class="demo-description">
-                You can create your own links using the following format:
+                You can create your own links using the following formats:
             </p>
             
             <div class="code-block">
-                web+elementalbox://[experiment-id]?param1=value1&param2=value2
+                web+elementalbox://[experiment-id]?param1=value1&param2=value2<br>
+                web+elemrecipe://[recipe-id]?param1=value1&param2=value2
             </div>
             
             <p class="demo-description">
-                When someone clicks this link, ElementalBox will open and receive the parameters, allowing 
-                you to share specific simulations or configurations.
+                When someone clicks these links, ElementalBox will open and receive the parameters, allowing 
+                you to share specific simulations, recipes, or configurations.
             </p>
         </div>
         
         <div class="demo-section">
             <h2 class="demo-title">Implementation Details</h2>
             <p class="demo-description">
-                The protocol handler is registered in our <code>manifest.json</code> file:
+                The protocol handlers are registered in our <code>manifest.json</code> file:
             </p>
             
             <div class="code-block">
-                "protocol_handler": {<br>
-                &nbsp;&nbsp;"protocol": "web+elementalbox",<br>
-                &nbsp;&nbsp;"url": "/index.html?experiment=%s"<br>
-                }
+                "protocol_handlers": [<br>
+                &nbsp;&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;"protocol": "web+elementalbox",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;"url": "/index.html?experiment=%s"<br>
+                &nbsp;&nbsp;},<br>
+                &nbsp;&nbsp;{<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;"protocol": "web+elemrecipe",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;"url": "/index.html?recipe=%s"<br>
+                &nbsp;&nbsp;}<br>
+                ]
             </div>
             
             <p class="demo-description">
-                When a user clicks a link with our protocol, the %s placeholder in the URL is replaced with the contents after the protocol.
+                When a user clicks a link with our protocols, the %s placeholder in the URL is replaced with the contents after the protocol.
             </p>
         </div>
     </div>

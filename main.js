@@ -2610,6 +2610,9 @@ function init() {
 
 // Wait until all scripts are loaded before initializing
 document.addEventListener('DOMContentLoaded', function() {
+    // Check for URL parameters (protocol handlers, etc.)
+    processUrlParameters();
+    
     // Initialize the game
     init(); 
     
@@ -3109,6 +3112,289 @@ window.isInBounds = function(x, y) {
     }
     
     return true;
+}
+
+// Process URL parameters for protocol handlers
+function processUrlParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Handle experiment protocol (web+elementalbox)
+    if (urlParams.has('experiment')) {
+        const experiment = urlParams.get('experiment');
+        console.log('Processing experiment:', experiment);
+        
+        // Load predefined experiment setups
+        switch (experiment) {
+            case 'fire-simulation':
+                loadFireExperiment();
+                break;
+            case 'water-flow':
+                loadWaterFlowExperiment();
+                break;
+            case 'chemical-reaction':
+                loadChemicalReactionExperiment();
+                break;
+            default:
+                // Try to parse experiment as JSON config if it's a custom experiment
+                try {
+                    const experimentData = JSON.parse(decodeURIComponent(experiment));
+                    if (experimentData && typeof experimentData === 'object') {
+                        importSimulation(experimentData);
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse experiment data:', e);
+                }
+        }
+    }
+    
+    // Handle recipe protocol (web+elemrecipe)
+    if (urlParams.has('recipe')) {
+        const recipe = urlParams.get('recipe');
+        console.log('Processing recipe:', recipe);
+        
+        // Load predefined recipes
+        switch (recipe) {
+            case 'water-and-fire':
+                loadWaterAndFireRecipe();
+                break;
+            case 'salt-crystal':
+                loadSaltCrystalRecipe();
+                break;
+            case 'lava-lamp':
+                loadLavaLampRecipe();
+                break;
+            default:
+                // Try to parse recipe as JSON config if it's a custom recipe
+                try {
+                    const recipeData = JSON.parse(decodeURIComponent(recipe));
+                    if (recipeData && typeof recipeData === 'object') {
+                        importSimulation(recipeData);
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse recipe data:', e);
+                }
+        }
+    }
+    
+    // Handle share-target or file-handler redirects
+    if (urlParams.has('fileload') || urlParams.has('shared') || urlParams.has('load')) {
+        // These are handled by the respective handlers in open-file/index.html and share-target/index.html
+        console.log('File/Share data detected in URL parameters');
+    }
+}
+
+// Example experiment/recipe loader functions
+function loadFireExperiment() {
+    // Clear the grid
+    resetSandbox(false);
+    
+    // Add solid base
+    for (let x = 0; x < gridWidth; x++) {
+        for (let y = gridHeight - 5; y < gridHeight; y++) {
+            grid[y][x] = new Particle('stone', getDefaultColor('stone'));
+        }
+    }
+    
+    // Add fire in the middle
+    const centerX = Math.floor(gridWidth / 2);
+    for (let x = centerX - 10; x < centerX + 10; x++) {
+        for (let y = gridHeight - 6; y > gridHeight - 10; y--) {
+            grid[y][x] = new Particle('fire', getDefaultColor('fire'));
+        }
+    }
+    
+    showNotification('Fire Experiment loaded!');
+}
+
+function loadWaterFlowExperiment() {
+    // Clear the grid
+    resetSandbox(false);
+    
+    // Create terrain with different levels
+    for (let x = 0; x < gridWidth; x++) {
+        // Base terrain height
+        let height = gridHeight - 10;
+        
+        // Create some hills and valleys
+        height += Math.sin(x / 20) * 10;
+        
+        for (let y = height; y < gridHeight; y++) {
+            grid[y][x] = new Particle('stone', getDefaultColor('stone'));
+        }
+    }
+    
+    // Add water source at the top left
+    for (let x = 5; x < 15; x++) {
+        for (let y = 5; y < 10; y++) {
+            grid[y][x] = new Particle('water', getDefaultColor('water'));
+        }
+    }
+    
+    showNotification('Water Flow Experiment loaded!');
+}
+
+function loadChemicalReactionExperiment() {
+    // Clear the grid
+    resetSandbox(false);
+    
+    // Create container
+    const centerX = Math.floor(gridWidth / 2);
+    const centerY = Math.floor(gridHeight / 2);
+    
+    // Add walls
+    for (let x = centerX - 30; x <= centerX + 30; x++) {
+        grid[centerY + 20][x] = new Particle('glass', getDefaultColor('glass')); // bottom
+        
+        if (x !== centerX) { // Leave an opening at the top center
+            grid[centerY - 20][x] = new Particle('glass', getDefaultColor('glass')); // top
+        }
+    }
+    
+    for (let y = centerY - 20; y <= centerY + 20; y++) {
+        grid[y][centerX - 30] = new Particle('glass', getDefaultColor('glass')); // left
+        grid[y][centerX + 30] = new Particle('glass', getDefaultColor('glass')); // right
+    }
+    
+    // Add acid on the left
+    for (let x = centerX - 25; x < centerX - 5; x++) {
+        for (let y = centerY - 15; y < centerY + 15; y++) {
+            grid[y][x] = new Particle('acid', getDefaultColor('acid'));
+        }
+    }
+    
+    // Add metal on the right
+    for (let x = centerX + 5; x < centerX + 25; x++) {
+        for (let y = centerY - 15; y < centerY + 15; y++) {
+            grid[y][x] = new Particle('metal', getDefaultColor('metal'));
+        }
+    }
+    
+    showNotification('Chemical Reaction Experiment loaded!');
+}
+
+function loadWaterAndFireRecipe() {
+    // Clear the grid
+    resetSandbox(false);
+    
+    // Create a platform
+    const centerX = Math.floor(gridWidth / 2);
+    const centerY = Math.floor(gridHeight / 2);
+    
+    // Add stone platform
+    for (let x = centerX - 25; x <= centerX + 25; x++) {
+        grid[centerY][x] = new Particle('stone', getDefaultColor('stone'));
+    }
+    
+    // Add water on the left
+    for (let x = centerX - 20; x < centerX - 5; x++) {
+        for (let y = centerY - 15; y < centerY - 1; y++) {
+            grid[y][x] = new Particle('water', getDefaultColor('water'));
+        }
+    }
+    
+    // Add fire on the right
+    for (let x = centerX + 5; x < centerX + 20; x++) {
+        for (let y = centerY - 15; y < centerY - 1; y++) {
+            grid[y][x] = new Particle('fire', getDefaultColor('fire'));
+        }
+    }
+    
+    showNotification('Water and Fire Recipe loaded!');
+}
+
+function loadSaltCrystalRecipe() {
+    // Clear the grid
+    resetSandbox(false);
+    
+    // Create a container
+    const centerX = Math.floor(gridWidth / 2);
+    const centerY = Math.floor(gridHeight / 2);
+    
+    // Create a glass container
+    for (let x = centerX - 20; x <= centerX + 20; x++) {
+        grid[centerY + 15][x] = new Particle('glass', getDefaultColor('glass')); // bottom
+    }
+    
+    for (let y = centerY - 15; y <= centerY + 15; y++) {
+        grid[y][centerX - 20] = new Particle('glass', getDefaultColor('glass')); // left
+        grid[y][centerX + 20] = new Particle('glass', getDefaultColor('glass')); // right
+    }
+    
+    // Add water with salt
+    for (let x = centerX - 18; x < centerX + 18; x++) {
+        for (let y = centerY + 0; y < centerY + 14; y++) {
+            if (Math.random() < 0.8) {
+                grid[y][x] = new Particle('water', getDefaultColor('water'));
+            } else {
+                grid[y][x] = new Particle('salt', getDefaultColor('salt'));
+            }
+        }
+    }
+    
+    // Add some crystals as seeds
+    for (let i = 0; i < 5; i++) {
+        const x = centerX + (Math.random() * 30 - 15);
+        const y = centerY + 10;
+        grid[y][Math.floor(x)] = new Particle('crystal', getDefaultColor('crystal'));
+    }
+    
+    showNotification('Salt Crystal Recipe loaded!');
+}
+
+function loadLavaLampRecipe() {
+    // Clear the grid
+    resetSandbox(false);
+    
+    // Create a tall container
+    const centerX = Math.floor(gridWidth / 2);
+    const centerY = Math.floor(gridHeight / 2);
+    
+    // Create a glass container
+    for (let x = centerX - 15; x <= centerX + 15; x++) {
+        grid[centerY + 25][x] = new Particle('glass', getDefaultColor('glass')); // bottom
+        grid[centerY - 25][x] = new Particle('glass', getDefaultColor('glass')); // top
+    }
+    
+    for (let y = centerY - 25; y <= centerY + 25; y++) {
+        grid[y][centerX - 15] = new Particle('glass', getDefaultColor('glass')); // left
+        grid[y][centerX + 15] = new Particle('glass', getDefaultColor('glass')); // right
+    }
+    
+    // Add oil to the container
+    for (let x = centerX - 13; x < centerX + 13; x++) {
+        for (let y = centerY - 23; y < centerY + 23; y++) {
+            grid[y][x] = new Particle('oil', getDefaultColor('oil'));
+        }
+    }
+    
+    // Add lava blobs
+    for (let i = 0; i < 8; i++) {
+        const blobX = centerX + (Math.random() * 20 - 10);
+        const blobY = centerY + (Math.random() * 40 - 20);
+        
+        // Create a circular blob
+        for (let x = -5; x <= 5; x++) {
+            for (let y = -5; y <= 5; y++) {
+                const distance = Math.sqrt(x*x + y*y);
+                if (distance <= 5) {
+                    const drawX = Math.floor(blobX + x);
+                    const drawY = Math.floor(blobY + y);
+                    
+                    if (drawX >= centerX - 13 && drawX < centerX + 13 && 
+                        drawY >= centerY - 23 && drawY < centerY + 23) {
+                        grid[drawY][drawX] = new Particle('lava', getDefaultColor('lava'));
+                    }
+                }
+            }
+        }
+    }
+    
+    // Add heat at the bottom
+    for (let x = centerX - 10; x < centerX + 10; x++) {
+        grid[centerY + 24][x] = new Particle('heat', getDefaultColor('heat'));
+    }
+    
+    showNotification('Lava Lamp Recipe loaded!');
 }
 
 
