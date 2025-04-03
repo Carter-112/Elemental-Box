@@ -1,0 +1,39 @@
+{
+  "package_name": "com.elementalbox.app",
+  "host": "elementalbox.netlify.app",
+  "name": "ElementalBox",
+  "display": "standalone",
+  "icon": "icons/icon-512x512.png",
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.elementalbox.app",
+      "id": "com.elementalbox.app"
+    }
+  ],
+  "android_sdk": {
+    "compileSdkVersion": 34,
+    "targetSdkVersion": 34,
+    "minSdkVersion": 24
+  },
+  "shortcuts": [
+    {
+      "name": "New Simulation",
+      "short_name": "New",
+      "url": "/index.html?new=true",
+      "icon": "icons/shortcut-new.png"
+    },
+    {
+      "name": "Fire Elements",
+      "short_name": "Fire",
+      "url": "/index.html?category=fire",
+      "icon": "icons/shortcut-fire.png"
+    },
+    {
+      "name": "Water Elements",
+      "short_name": "Water",
+      "url": "/index.html?category=water",
+      "icon": "icons/shortcut-water.png"
+    }
+  ]
+} 

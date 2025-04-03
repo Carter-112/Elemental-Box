@@ -45,6 +45,12 @@ To test locally, you can use any simple HTTP server.
 
 ## PWA Builder Android Package
 
-When building an Android app using PWA Builder, please refer to the `PWA-BUILDER-USAGE.md` file for instructions on using the `pwabuilder-config.json` configuration file. This configuration ensures compatibility with the PWA Builder build environment by setting appropriate Android SDK versions.
+We've provided multiple configuration files to ensure compatibility with PWA Builder when building an Android app:
 
-If you encounter a 500 internal server error during the build process, follow the solutions outlined in that document. 
+- `pwabuilder.json` - Primary configuration file
+- `android-config.json` - Alternative Android-specific configuration
+- `pwabuilder-config.json` - Basic configuration file
+
+These configurations fix the "Internal Server Error: Status code 500" by specifying Android SDK 34 instead of 35.
+
+For detailed instructions on using these files with PWA Builder, see `PWA-BUILDER-USAGE.md`. 

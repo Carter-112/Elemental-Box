@@ -1,0 +1,19 @@
+{
+  "platform": "android",
+  "settings": {
+    "compilesSdkVersion": 34,
+    "targetSdkVersion": 34,
+    "maxSdkVersion": 34,
+    "minSdkVersion": 24,
+    "packageName": "com.elementalbox.app",
+    "appName": "ElementalBox",
+    "appVersionName": "1.2.0",
+    "appVersionCode": 1,
+    "backgroundColor": "#121212",
+    "themeColor": "#00a8ff",
+    "generateSigningKey": true,
+    "signingMode": "new",
+    "fallbackType": "customtabs",
+    "startUrl": "/index.html"
+  }
+} 

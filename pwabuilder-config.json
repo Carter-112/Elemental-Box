@@ -1,10 +1,17 @@
 {
-  "android": {
-    "targetSdkVersion": 34,
-    "compileSdkVersion": 34,
-    "minSdkVersion": 24,
-    "manifestPlaceholders": {
-      "applicationId": "com.elementalbox.app"
+  "androidSdkVersion": 34,
+  "preferredAndroidSdk": 34,
+  "maxAndroidSdk": 34,
+  "manifest": {
+    "android": {
+      "buildOptions": {
+        "compileSdkVersion": 34,
+        "targetSdkVersion": 34,
+        "minSdkVersion": 24
+      },
+      "manifestPlaceholders": {
+        "applicationId": "com.elementalbox.app"
+      }
     }
   }
 } 
