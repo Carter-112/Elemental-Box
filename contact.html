@@ -2,29 +2,37 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Contact Us - ElementalBox</title>
     <link rel="stylesheet" href="styles.css">
     <style>
+        /* Base styles */
         body {
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
             background-color: #121212;
             color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         
         .container {
+            flex: 1;
             max-width: 800px;
+            width: 100%;
             margin: 0 auto;
-            padding: 20px;
+            padding: 0 15px;
+            box-sizing: border-box;
         }
         
+        /* Header styles */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px;
+            padding: 15px;
             background-color: #1a1a1a;
             border-bottom: 1px solid #333;
         }
@@ -33,77 +41,59 @@
             margin: 0;
             color: #00a8ff;
             font-size: 24px;
+            white-space: nowrap;
         }
         
         .nav {
             display: flex;
-            gap: 20px;
+            gap: 15px;
         }
         
         .nav a {
             color: #e0e0e0;
             text-decoration: none;
-            padding: 5px 10px;
+            padding: 8px 12px;
             border-radius: 4px;
             transition: background-color 0.2s;
+            white-space: nowrap;
         }
         
         .nav a:hover {
             background-color: #333;
         }
         
+        /* Content styles */
         .content {
-            padding: 40px 20px;
+            padding: 20px 0;
         }
         
         h1 {
-            font-size: 28px;
-            margin-bottom: 20px;
+            font-size: 26px;
+            margin: 0 0 15px 0;
             color: #00a8ff;
-        }
-        
-        h2 {
-            color: #00a8ff;
-            margin-top: 30px;
         }
         
         p {
-            line-height: 1.6;
-            margin-bottom: 20px;
-        }
-        
-        .footer {
-            text-align: center;
-            padding: 20px;
-            border-top: 1px solid #333;
-            margin-top: 40px;
-            color: #888;
-            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 15px;
         }
         
         /* Form styles */
         .contact-form {
-            max-width: 600px;
             background-color: #1a1a1a;
-            padding: 30px;
+            padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
             margin: 0 auto;
         }
         
-        .form-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         
         label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             font-weight: bold;
         }
         
@@ -115,6 +105,7 @@
             border-radius: 4px;
             color: #e0e0e0;
             font-size: 16px;
+            box-sizing: border-box;
             transition: border-color 0.3s;
         }
         
@@ -125,7 +116,7 @@
         }
         
         textarea {
-            min-height: 150px;
+            min-height: 120px;
             resize: vertical;
         }
         
@@ -133,13 +124,13 @@
             background-color: #00a8ff;
             color: white;
             border: none;
-            padding: 12px 24px;
+            width: 100%;
+            padding: 12px;
             border-radius: 4px;
             font-size: 16px;
             cursor: pointer;
             transition: background-color 0.3s;
-            min-height: 44px; /* Minimum touch target height */
-            min-width: 100px; /* Ensure reasonable width */
+            min-height: 48px;
         }
         
         button:hover {
@@ -147,10 +138,11 @@
         }
         
         .form-message {
-            margin-top: 20px;
+            margin-top: 15px;
             padding: 10px;
             border-radius: 4px;
             display: none;
+            text-align: center;
         }
         
         .form-message.success {
@@ -163,6 +155,16 @@
             background-color: rgba(231, 76, 60, 0.2);
             border: 1px solid #e74c3c;
             color: #e74c3c;
+        }
+        
+        /* Footer styles */
+        .footer {
+            text-align: center;
+            padding: 15px;
+            border-top: 1px solid #333;
+            margin-top: 20px;
+            color: #888;
+            font-size: 14px;
         }
         
         /* Light mode styles */
@@ -188,8 +190,7 @@
             background-color: #ddd;
         }
         
-        body.light-mode h1,
-        body.light-mode h2 {
+        body.light-mode h1 {
             color: #0066cc;
         }
         
@@ -210,17 +211,15 @@
             color: #666;
         }
         
-        /* Mobile responsive styles */
-        @media (max-width: 767px) {
+        /* PORTRAIT MODE - Standard mobile */
+        @media (max-width: 768px) {
             .header {
                 flex-direction: column;
-                gap: 15px;
-                padding: 15px;
-                text-align: center;
+                padding: 12px;
             }
             
             .header h1 {
-                font-size: 22px;
+                margin-bottom: 10px;
             }
             
             .nav {
@@ -228,54 +227,33 @@
                 justify-content: center;
             }
             
-            .nav a {
-                padding: 8px 12px; /* Larger touch target */
-            }
-            
             .content {
-                padding: 20px 15px;
+                padding: 15px 0;
             }
             
             h1 {
                 font-size: 24px;
+                text-align: center;
+            }
+            
+            p {
+                text-align: center;
             }
             
             .contact-form {
-                padding: 20px 15px;
-            }
-            
-            input, textarea {
-                font-size: 16px; /* Prevent iOS zoom on focus */
-                padding: 10px;
-            }
-            
-            button {
-                width: 100%; /* Full-width button on mobile */
-                padding: 12px 0;
+                padding: 15px;
             }
         }
         
-        /* Small mobile devices */
+        /* Small devices in portrait */
         @media (max-width: 400px) {
-            .header h1 {
-                font-size: 20px;
-            }
-            
-            .nav {
-                gap: 5px;
-            }
-            
             .nav a {
-                font-size: 14px;
                 padding: 6px 8px;
+                font-size: 14px;
             }
             
             h1 {
                 font-size: 22px;
-            }
-            
-            label {
-                font-size: 14px;
             }
             
             .form-message {
@@ -283,54 +261,87 @@
             }
         }
         
-        /* Landscape orientation for mobile */
-        @media (max-height: 500px) and (orientation: landscape) {
+        /* LANDSCAPE MODE */
+        @media (orientation: landscape) and (max-height: 500px) {
             .header {
-                padding: 10px;
-                flex-direction: row; /* Keep header horizontal in landscape */
+                flex-direction: row;
+                padding: 8px 15px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+                margin-bottom: 0;
+            }
+            
+            .nav a {
+                padding: 5px 10px;
+                font-size: 14px;
+            }
+            
+            .container {
+                display: flex;
+                flex-direction: column;
             }
             
             .content {
-                padding: 15px;
+                padding: 10px 0;
+                display: flex;
+                flex-direction: column;
             }
             
             h1 {
-                margin-top: 5px;
+                font-size: 20px;
                 margin-bottom: 10px;
+                text-align: center;
+            }
+            
+            p {
+                display: none; /* Hide descriptive text in landscape to save space */
             }
             
             .contact-form {
-                padding: 15px;
+                padding: 12px;
+                flex: 1;
+            }
+            
+            .form-layout {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .form-column {
+                flex: 1;
+                min-width: 180px;
             }
             
             .form-group {
                 margin-bottom: 10px;
             }
             
+            label {
+                margin-bottom: 4px;
+                font-size: 14px;
+            }
+            
+            input {
+                padding: 8px;
+            }
+            
             textarea {
-                min-height: 80px; /* Shorter textarea for landscape */
+                min-height: 80px;
+                padding: 8px;
+            }
+            
+            button {
+                min-height: 40px;
+                padding: 8px;
             }
             
             .footer {
-                margin-top: 15px;
-                padding: 10px;
-            }
-            
-            /* Two-column layout for landscape on small screens */
-            @media (max-width: 767px) {
-                .form-container {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 10px;
-                }
-                
-                .form-group {
-                    flex: 0 0 calc(50% - 5px);
-                }
-                
-                .form-group.full-width {
-                    flex: 0 0 100%;
-                }
+                padding: 8px;
+                margin-top: 10px;
+                font-size: 12px;
             }
         }
     </style>
@@ -349,24 +360,28 @@
         <div class="content">
             <h1>Contact Us</h1>
             
-            <p>Have questions or feedback about ElementalBox? Use the form below to get in touch with us.</p>
+            <p>Have questions or feedback? Use the form below to get in touch with us.</p>
             
             <div class="contact-form">
                 <form id="contactForm" method="POST">
-                    <div class="form-container">
-                        <div class="form-group">
-                            <label for="name">Name</label>
-                            <input type="text" id="name" name="name" required autocomplete="name">
+                    <div class="form-layout">
+                        <div class="form-column">
+                            <div class="form-group">
+                                <label for="name">Name</label>
+                                <input type="text" id="name" name="name" required autocomplete="name">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" id="email" name="email" required autocomplete="email">
+                            </div>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="email">Email</label>
-                            <input type="email" id="email" name="email" required autocomplete="email">
-                        </div>
-                        
-                        <div class="form-group full-width">
-                            <label for="message">Message</label>
-                            <textarea id="message" name="message" required></textarea>
+                        <div class="form-column">
+                            <div class="form-group">
+                                <label for="message">Message</label>
+                                <textarea id="message" name="message" required></textarea>
+                            </div>
                         </div>
                     </div>
                     
@@ -394,8 +409,9 @@
             const formSuccess = document.getElementById('formSuccess');
             const formError = document.getElementById('formError');
             
+            // Handle form submission
             contactForm.addEventListener('submit', function(e) {
-                e.preventDefault(); // Prevent the default form submission
+                e.preventDefault();
                 
                 // Get form values
                 const name = document.getElementById('name').value.trim();
@@ -435,7 +451,6 @@
             });
             
             function showSuccess() {
-                formSuccess.textContent = 'Your email client has been opened with your message. Please send the email to complete your message.';
                 formSuccess.style.display = 'block';
                 formError.style.display = 'none';
                 
@@ -460,24 +475,6 @@
             const isDarkMode = localStorage.getItem('darkMode') !== 'false';
             if (!isDarkMode) {
                 document.body.classList.add('light-mode');
-            }
-            
-            // Add orientation change handler to adjust UI for landscape/portrait
-            window.addEventListener('orientationchange', function() {
-                // Allow time for orientation to complete
-                setTimeout(() => {
-                    if (window.innerHeight < 500) {
-                        // Landscape mode on small screen
-                        document.body.classList.add('landscape-mode');
-                    } else {
-                        document.body.classList.remove('landscape-mode');
-                    }
-                }, 100);
-            });
-            
-            // Run once on page load
-            if (window.innerHeight < 500) {
-                document.body.classList.add('landscape-mode');
             }
         });
     </script>
