@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1024, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ElementalBox - Particle Sandbox</title>
-    
+
     <!-- PWA Support -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00a8ff">
@@ -12,10 +12,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ElementalBox">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-    
+
     <!-- PWA Builder Service Worker Registration -->
     <script src="pwabuilder-sw-register.js"></script>
-    
+
     <!-- Original Service Worker Registration (kept as fallback) -->
     <script>
         // The original service worker registration is kept as a fallback,
@@ -35,21 +35,21 @@
             });
         }
     </script>
-    
+
     <!-- Separate script for service worker features -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Feature detection is handled by the pwabuilder-sw-register.js script
-            
+
             // Check if running as installed PWA and force desktop layout
-            if (window.matchMedia('(display-mode: standalone)').matches || 
+            if (window.matchMedia('(display-mode: standalone)').matches ||
                 window.navigator.standalone === true) {
                 // Running as installed PWA - apply desktop layout override
                 document.body.classList.add('pwa-installed');
             }
         });
     </script>
-    
+
     <style>
         * {
             margin: 0;
@@ -57,7 +57,7 @@
             box-sizing: border-box;
             /* Remove global touch-action restriction */
         }
-        
+
         body, html {
             width: 100%;
             height: 100%;
@@ -72,12 +72,12 @@
             -ms-user-select: none;       /* Same for Internet Explorer/Edge */
             user-select: none;           /* Non-prefixed version */
         }
-        
+
         /* Apply touch-action: none only to the canvas to prevent browser scrolling/zooming during drawing */
         #sandbox {
             touch-action: none;
         }
-        
+
         /* Ad container styles */
         #top-ad-container {
             position: absolute;
@@ -92,7 +92,7 @@
             justify-content: center;
             align-items: center;
         }
-        
+
         #side-ad-container {
             position: fixed; /* Changed from absolute to fixed */
             top: 100px; /* Position below top ad */
@@ -106,7 +106,7 @@
             justify-content: center;
             align-items: center;
         }
-        
+
         .ad-label {
             background-color: rgba(0, 0, 0, 0.5);
             color: white;
@@ -116,17 +116,17 @@
             top: 0;
             left: 0;
         }
-        
+
         /* Mobile responsive adjustments */
         @media (max-width: 768px) {
             #app-container {
                 flex-direction: column;
             }
-            
+
             #content-container {
                 flex-direction: column;
             }
-            
+
             #toolbar {
                 width: 100%;
                 height: auto;
@@ -138,15 +138,15 @@
                 /* Add indicators that content is scrollable */
                 background-image: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, transparent 5%, transparent 95%, rgba(0,0,0,0.1) 100%);
             }
-            
+
             /* More finger-friendly spacing */
             .top-controls, .brush-controls, .tools-container, #element-buttons {
                 margin-bottom: 20px;
                 padding-bottom: 10px;
             }
-            
+
             /* Larger buttons for touch screens */
-            .action-btn, 
+            .action-btn,
             .env-tool-button,
             .element-button {
                 min-height: 44px; /* Apple's recommended minimum touch target size */
@@ -155,109 +155,109 @@
                 margin: 6px; /* More spacing between buttons */
                 font-size: 14px;
             }
-            
+
             /* Make scroll snapping work for categories */
             .element-category {
                 scroll-snap-align: start;
                 margin-bottom: 24px; /* More space between categories */
             }
-            
+
             /* Increase padding for brush size control */
             #brush-size {
                 height: 36px; /* Taller for easier touch */
                 margin: 10px 0;
             }
-            
+
             #brush-size-value {
                 font-size: 18px;
                 min-width: 24px;
                 text-align: center;
             }
-            
+
             /* Larger, more obvious scrollbar for mobile */
             #toolbar::-webkit-scrollbar {
                 width: 8px;
                 background-color: rgba(255,255,255,0.05);
             }
-            
+
             #toolbar::-webkit-scrollbar-thumb {
                 background-color: rgba(255,255,255,0.2);
                 border-radius: 4px;
             }
-            
+
             #toolbar::-webkit-scrollbar-thumb:hover {
                 background-color: rgba(255,255,255,0.3);
             }
-            
+
             #canvas-container {
                 height: 60vh; /* Reduced to give more space to toolbar */
             }
-            
+
             #top-ad-container {
                 width: 100%;
                 height: 80px;
                 z-index: 20;
             }
-            
+
             #side-ad-container {
                 top: 80px;
                 width: 100%;
                 height: 160px;
                 z-index: 20;
             }
-            
+
             .mobile-ad-content {
                 writing-mode: horizontal-tb !important;
                 text-orientation: initial !important;
             }
         }
-        
+
         @media (max-width: 480px) {
             #top-ad-container {
                 height: 70px;
             }
-            
+
             #side-ad-container {
                 top: 70px;
                 height: 120px;
             }
         }
-        
+
         /* Landscape orientation adjustments */
         @media (max-width: 768px) and (orientation: landscape) {
             #content-container {
                 flex-direction: row;
             }
-            
+
             #toolbar {
                 width: 200px;
                 height: 100%;
                 max-height: none;
             }
-            
+
             #canvas-container {
                 flex: 1;
                 height: 100%;
                 width: calc(100% - 200px - 100px); /* Toolbar - sideAd */
             }
-            
+
             #top-ad-container {
                 width: 50%;
                 right: 0;
             }
-            
+
             #side-ad-container {
                 width: 100px;
                 height: calc(100vh - 100px);
                 top: 100px;
                 right: 0;
             }
-            
+
             #side-ad-container .mobile-ad-content {
                 writing-mode: vertical-lr !important;
             }
         }
-        
+
         /* Portrait orientation adjustments */
         @media (max-width: 768px) and (orientation: portrait) {
             /* Portrait mode (vertical) */
@@ -267,30 +267,30 @@
                 top: auto;
                 right: auto;
             }
-            
+
             #side-ad-container {
                 position: relative;
                 order: 3;
                 top: auto;
                 right: auto;
             }
-            
+
             #canvas-container {
                 order: 1;
             }
         }
-        
+
         /* Light mode ad styles */
         body.light-mode #top-ad-container,
         body.light-mode #side-ad-container {
             background-color: #f0f0f0;
             border-color: #ddd;
         }
-        
+
         body.light-mode .ad-label {
             color: #999;
         }
-        
+
         #app-container {
             display: flex;
             flex-direction: column;
@@ -298,7 +298,7 @@
             width: 100vw;
             position: relative;
         }
-        
+
         #header {
             background-color: #011627;
             color: white;
@@ -311,14 +311,14 @@
             flex-wrap: wrap;
             min-height: 50px;
         }
-        
+
         #content-container {
             display: flex;
             flex: 1;
             position: relative;
             overflow: hidden;
         }
-        
+
         #toolbar {
             width: 280px;
             height: 100%;
@@ -338,19 +338,19 @@
             /* Ensure scrollbar always visible on desktop */
             scrollbar-width: thin;
         }
-        
+
         #canvas-container {
             flex: 1;
             position: relative;
             overflow: hidden;
         }
-        
+
         #canvas {
             width: 100%;
             height: 100%;
             background-color: #000;
         }
-        
+
         #sandbox {
             position: absolute;
             top: 0;
@@ -359,7 +359,7 @@
             height: 100%;
             background-color: #000;
         }
-        
+
         .element-btn {
             width: 32px;
             height: 32px;
@@ -371,23 +371,23 @@
             transition: all 0.2s;
             position: relative;
         }
-        
+
         .element-btn:hover {
             transform: scale(1.1);
             border-color: #666;
         }
-        
+
         .element-btn.selected {
             border-color: #00a8ff;
             box-shadow: 0 0 5px rgba(0, 168, 255, 0.7);
         }
-        
+
         .element-group {
             margin-bottom: 15px;
             border-bottom: 1px solid #333;
             padding-bottom: 5px;
         }
-        
+
         .element-group-title {
             font-size: 14px;
             font-weight: bold;
@@ -396,25 +396,25 @@
             clear: both;
             padding-top: 5px;
         }
-        
+
         .element-grid {
             display: flex;
             flex-wrap: wrap;
         }
-        
+
         .brush-controls {
             margin: 10px 0;
             display: flex;
             flex-direction: column;
         }
-        
+
         .brush-size-container {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 10px;
         }
-        
+
         .brush-btn {
             padding: 4px 8px;
             margin: 0 2px;
@@ -424,24 +424,24 @@
             color: #e0e0e0;
             cursor: pointer;
         }
-        
+
         .brush-btn.selected {
             background-color: #00a8ff;
             border-color: #0077cc;
             color: white;
         }
-        
+
         #override-container,
         #no-boundaries-container {
             margin: 10px 0;
             width: 100%;
         }
-        
+
         #override-btn,
         #no-boundaries-btn {
             width: 100%;
         }
-        
+
         .top-controls {
             display: flex;
             flex-wrap: wrap;
@@ -451,20 +451,20 @@
             border-bottom: 1px solid #333;
             gap: 5px;
         }
-        
+
         .tooltip {
             position: relative;
             display: inline-block;
             margin-bottom: 5px;
         }
-        
+
         .element-btn:hover .tooltip {
             display: block;
             top: 100%;
             left: 50%;
             transform: translateX(-50%);
         }
-        
+
         .action-btn {
             padding: 8px 12px;
             margin: 4px;
@@ -478,37 +478,37 @@
             min-width: 60px;
             flex-grow: 1;
         }
-        
+
         .action-btn:hover {
             background-color: #3a3a3a;
         }
-        
+
         .action-btn.active {
             background-color: #00a8ff;
             color: white;
             border-color: #0077cc;
         }
-        
+
         .action-btn.primary {
             background-color: #00a8ff;
             color: white;
             border-color: #0077cc;
         }
-        
+
         .action-btn.primary:hover {
             background-color: #0077cc;
         }
-        
+
         .action-btn.warning {
             background-color: #ff4136;
             color: white;
             border-color: #dc352c;
         }
-        
+
         .action-btn.warning:hover {
             background-color: #dc352c;
         }
-        
+
         .env-tool-btn {
             padding: 8px;
             margin: 4px;
@@ -522,32 +522,32 @@
             font-size: 20px;
             transition: all 0.2s;
         }
-        
+
         .env-tool-btn.wind {
             background-color: #7fdbff;
             color: #000;
         }
-        
+
         .env-tool-btn.heat {
             background-color: #ff4136;
             color: #fff;
         }
-        
+
         .env-tool-btn.cold {
             background-color: #0074d9;
             color: #fff;
         }
-        
+
         .env-tool-btn:hover {
             transform: scale(1.1);
         }
-        
+
         .env-tools {
             display: flex;
             justify-content: space-around;
             margin: 10px 0;
         }
-        
+
         #notification {
             position: fixed;
             top: 20px;
@@ -566,13 +566,13 @@
             pointer-events: none;
             display: none;
         }
-        
+
         .file-input-container {
             position: relative;
             overflow: hidden;
             display: inline-block;
         }
-        
+
         .file-input-container input[type=file] {
             position: absolute;
             opacity: 0;
@@ -582,7 +582,7 @@
             height: 100%;
             cursor: pointer;
         }
-        
+
         /* Dark mode toggle */
         .theme-toggle {
             display: flex;
@@ -592,7 +592,7 @@
             border-top: 1px solid #333;
             justify-content: space-between;
         }
-        
+
         .toggle-switch {
             position: relative;
             display: inline-block;
@@ -600,13 +600,13 @@
             height: 20px;
             margin-right: 10px;
         }
-        
+
         .toggle-switch input {
             opacity: 0;
             width: 0;
             height: 0;
         }
-        
+
         .toggle-slider {
             position: absolute;
             cursor: pointer;
@@ -618,7 +618,7 @@
             transition: .4s;
             border-radius: 20px;
         }
-        
+
         .toggle-slider:before {
             position: absolute;
             content: "";
@@ -630,15 +630,15 @@
             transition: .4s;
             border-radius: 50%;
         }
-        
+
         input:checked + .toggle-slider {
             background-color: #00a8ff;
         }
-        
+
         input:checked + .toggle-slider:before {
             transform: translateX(20px);
         }
-        
+
         .theme-toggle, .display-options {
             margin: 10px 0;
             padding: 10px;
@@ -646,19 +646,19 @@
             border-radius: 5px;
             background-color: #2a2a2a;
         }
-        
+
         .display-toggles {
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-        
+
         .toggle-option {
             display: flex;
             align-items: center;
             margin: 5px 0;
         }
-        
+
         /* Modal styles */
         .modal {
             display: none;
@@ -676,12 +676,12 @@
             pointer-events: none;
             transition: opacity 0.3s;
         }
-        
+
         .modal.show {
             opacity: 1;
             pointer-events: auto;
         }
-        
+
         .modal-content {
             background-color: #2a2a2a;
             padding: 20px;
@@ -691,23 +691,23 @@
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
             position: relative;
         }
-        
+
         .modal-title {
             font-size: 18px;
             font-weight: bold;
             margin-bottom: 15px;
             color: #00a8ff;
         }
-        
+
         .modal-body {
             margin-bottom: 20px;
         }
-        
+
         .modal-buttons {
             display: flex;
             justify-content: flex-end;
         }
-        
+
         .modal-btn {
             padding: 6px 12px;
             margin-left: 10px;
@@ -716,34 +716,34 @@
             border: none;
             transition: all 0.2s;
         }
-        
+
         .modal-btn.cancel {
             background-color: #444;
             color: #e0e0e0;
         }
-        
+
         .modal-btn.confirm {
             background-color: #ff4136;
             color: white;
         }
-        
+
         .modal-btn:hover {
             transform: scale(1.05);
         }
-        
+
         /* Notification styles */
         .notification.info {
             background-color: #3498db;
         }
-        
+
         .notification.error {
             background-color: #e74c3c;
         }
-        
+
         .notification.success {
             background-color: #2ecc71;
         }
-        
+
         /* Reset modal styles */
         .modal {
             display: none;
@@ -757,7 +757,7 @@
             justify-content: center;
             align-items: center;
         }
-        
+
         .modal-content {
             background-color: white;
             padding: 20px;
@@ -767,31 +767,31 @@
             max-width: 400px;
             width: 90%;
         }
-        
+
         .modal-buttons {
             margin-top: 20px;
             display: flex;
             justify-content: center;
             gap: 10px;
         }
-        
+
         /* Environmental tool active state */
         .env-tool.active {
             background-color: #e74c3c;
             color: white;
         }
-        
+
         /* Tool buttons hover effect */
         .toolbar-btn:hover, .brush-btn:hover, .env-tool:hover, .element-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
-        
+
         /* Hidden file input */
         #import-file {
             display: none;
         }
-        
+
         /* Tooltip styles */
         .tooltip .tooltiptext {
             visibility: hidden;
@@ -809,53 +809,53 @@
             opacity: 0;
             transition: opacity 0.3s;
         }
-        
+
         .tooltip:hover .tooltiptext {
             visibility: visible;
             opacity: 1;
         }
-        
+
         /* Light mode styles */
         body.light-mode {
             background-color: #f0f0f0;
             color: #333;
         }
-        
+
         body.light-mode #toolbar {
             background-color: #e0e0e0;
             border-right: 1px solid #ccc;
         }
-        
+
         body.light-mode .element-btn {
             border-color: #ccc;
             background-color: #f5f5f5;
         }
-        
+
         body.light-mode .element-group-title {
             color: #0066cc;
         }
-        
+
         body.light-mode .element-group {
             border-bottom: 1px solid #ccc;
         }
-        
-        body.light-mode .brush-btn, 
+
+        body.light-mode .brush-btn,
         body.light-mode .action-btn {
             background-color: #e6e6e6;
             border-color: #ccc;
             color: #333;
         }
-        
+
         body.light-mode .modal-content {
             background-color: #f5f5f5;
             color: #333;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        
+
         body.light-mode #sandbox {
             background-color: #fff;
         }
-        
+
         /* Added Status Bar Style */
         #status-bar {
             padding: 5px 0;
@@ -866,7 +866,7 @@
             justify-content: space-between;
             color: #aaa;
         }
-        
+
         /* Style for the dynamically loaded element buttons container */
         #element-buttons {
             display: flex;
@@ -874,7 +874,7 @@
             gap: 5px; /* Add some spacing between buttons */
             margin-bottom: 15px;
         }
-        
+
         /* Adjust style for dynamically created buttons if needed */
         .element-button {
              width: 30px; /* Adjust size as needed */
@@ -886,23 +886,23 @@
              position: relative; /* For tooltips if added later */
              transition: transform 0.1s ease;
         }
-        
+
         .element-button:hover {
             transform: scale(1.1);
             border-color: #666;
         }
-        
+
         .element-button.active {
             border: 2px solid #00a8ff;
             box-shadow: 0 0 5px rgba(0, 168, 255, 0.7);
         }
-        
+
         /* Light mode status bar */
         body.light-mode #status-bar {
             border-bottom: 1px solid #ccc;
             color: #555;
         }
-        
+
         /* Element categories layout */
         .element-category {
             margin-bottom: 15px;
@@ -911,7 +911,7 @@
             overflow: hidden;
             background-color: #333;
         }
-        
+
         .category-heading {
             margin: 0;
             padding: 5px 10px;
@@ -920,13 +920,13 @@
             font-size: 14px;
             font-weight: bold;
         }
-        
+
         .category-elements {
             display: flex;
             flex-wrap: wrap;
             padding: 5px;
         }
-        
+
         /* Element buttons with labels */
         .element-button {
             display: flex;
@@ -942,24 +942,24 @@
             width: 60px;
             height: 60px;
         }
-        
+
         .element-button:hover {
             background-color: #444;
             transform: scale(1.05);
         }
-        
+
         .element-button.active {
             border: 2px solid #fff;
             background-color: #555;
         }
-        
+
         .element-color {
             width: 40px;
             height: 40px;
             border-radius: 5px;
             margin-bottom: 3px;
         }
-        
+
         .element-name {
             font-size: 10px;
             color: #fff;
@@ -969,7 +969,7 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        
+
         /* Environmental tools section */
         .environmental-tools {
             display: flex;
@@ -980,12 +980,12 @@
             border-radius: 5px;
             background-color: #333;
         }
-        
+
         /* Environmental tools styling */
         .tools-container {
             margin-bottom: 15px;
         }
-        
+
         .environmental-tools {
             display: flex;
             justify-content: space-around;
@@ -995,7 +995,7 @@
             border-radius: 5px;
             background-color: #333;
         }
-        
+
         .env-tool-button {
             display: flex;
             flex-direction: column;
@@ -1012,46 +1012,46 @@
             height: 70px;
             position: relative;
         }
-        
+
         .env-tool-button:hover {
             background-color: #444;
             transform: scale(1.05);
         }
-        
+
         .env-tool-button.active {
             border: 2px solid #fff;
             background-color: #555;
         }
-        
+
         .tool-icon {
             font-size: 24px;
             margin-bottom: 5px;
         }
-        
+
         .tool-name {
             font-size: 12px;
             text-align: center;
         }
-        
+
         .wind-direction {
             position: absolute;
             bottom: 2px;
             font-size: 14px;
             color: #ff6b6b;
         }
-        
+
         .wind-direction.right { transform: rotate(0deg); }
         .wind-direction.down { transform: rotate(90deg); }
         .wind-direction.left { transform: rotate(180deg); }
         .wind-direction.up { transform: rotate(270deg); }
-        
+
         /* Ad connection styles */
         .ad-container-wrapper {
             display: flex;
             flex-direction: column;
             position: relative;
         }
-        
+
         /* Better ad positioning for all screen sizes */
         @media (min-width: 769px) {
             /* Desktop layout */
@@ -1064,7 +1064,7 @@
                 border-bottom-left-radius: 4px;
                 z-index: 20;
             }
-            
+
             #side-ad-container {
                 position: fixed;
                 top: 100px; /* Connect directly below the top ad */
@@ -1076,14 +1076,14 @@
                 z-index: 20;
                 overflow: visible;
             }
-            
+
             /* Adjust canvas for desktop to account for side ad */
             #canvas-container {
                 margin-right: 100px; /* Make room for side ad */
                 position: relative;
             }
         }
-        
+
         /* Medium screen sizes (tablets) */
         @media (min-width: 481px) and (max-width: 768px) {
             /* Tablet layout */
@@ -1092,27 +1092,27 @@
                 height: 80px;
                 right: 0;
             }
-            
+
             #side-ad-container {
                 width: 100%;
                 height: 160px;
                 top: 80px;
                 flex-direction: row;
             }
-            
+
             .mobile-ad-content {
                 max-width: 100%;
                 height: auto;
                 writing-mode: horizontal-tb !important;
                 text-orientation: initial !important;
             }
-            
+
             /* Adjust canvas for tablets */
             #canvas-container {
                 height: calc(100vh - 300px); /* Adjust for top bar and ads */
             }
         }
-        
+
         /* Small screen sizes (phones) */
         @media (max-width: 480px) {
             #top-ad-container {
@@ -1120,29 +1120,29 @@
                 width: 100%;
                 right: 0;
             }
-            
+
             #side-ad-container {
                 height: 150px; /* Increased height for mobile */
                 width: 100%;
                 top: 70px;
                 flex-direction: row;
             }
-            
+
             .mobile-ad-content {
                 transform: rotate(0); /* Ensure proper orientation */
                 writing-mode: horizontal-tb !important;
                 width: 100% !important;
                 height: 100% !important;
             }
-            
+
             /* Adjust canvas container for mobile */
             #canvas-container {
                 height: calc(100vh - 350px); /* Adjust for toolbar and larger ads */
             }
         }
-        
+
         /* Enhanced notification styling */
-        
+
         /* Add navigation links styles */
         .header-nav {
             position: absolute;
@@ -1152,7 +1152,7 @@
             display: flex;
             gap: 15px;
         }
-        
+
         .nav-link {
             color: #e0e0e0;
             text-decoration: none;
@@ -1162,42 +1162,42 @@
             font-size: 14px;
             transition: background-color 0.2s;
         }
-        
+
         .nav-link:hover {
             background-color: rgba(0, 0, 0, 0.7);
         }
-        
+
         .light-mode .nav-link {
             color: #333;
             background-color: rgba(255, 255, 255, 0.7);
         }
-        
+
         .light-mode .nav-link:hover {
             background-color: rgba(255, 255, 255, 0.9);
         }
-        
+
         @media (max-width: 768px) {
             .header-nav {
                 top: 5px;
                 left: 5px;
                 gap: 10px;
             }
-            
+
             .nav-link {
                 padding: 4px 8px;
                 font-size: 12px;
             }
         }
-        
+
         /* PWA desktop layout overrides - applied when running as installed PWA */
         body.pwa-installed #app-container {
             flex-direction: row !important;
         }
-        
+
         body.pwa-installed #content-container {
             flex-direction: row !important;
         }
-        
+
         body.pwa-installed #toolbar {
             width: 300px !important;
             height: 100% !important;
@@ -1207,22 +1207,22 @@
             border-bottom: none !important;
             padding: 10px !important;
         }
-        
+
         body.pwa-installed #canvas-container {
             height: 100% !important;
         }
-        
+
         body.pwa-installed #top-ad-container {
             width: 50% !important;
             height: 100px !important;
         }
-        
+
         body.pwa-installed #side-ad-container {
             top: 100px !important;
             width: 100px !important;
             height: 500px !important;
         }
-        
+
         /* Header fix for PWA installed mode */
         body.pwa-installed #header {
             position: sticky !important;
@@ -1237,18 +1237,18 @@
             min-height: 50px !important;
             padding: 10px !important;
         }
-        
+
         body.pwa-installed #app-container {
             height: 100% !important;
             flex-direction: column !important;
         }
-        
+
         body.pwa-installed #content-container {
             flex: 1 !important;
             flex-direction: row !important;
             height: calc(100% - 60px) !important; /* Adjust based on header height */
         }
-        
+
         body.pwa-installed #toolbar {
             width: 300px !important;
             height: 100% !important;
@@ -1257,12 +1257,12 @@
             border-right: 1px solid #333 !important;
             border-bottom: none !important;
         }
-        
+
         body.pwa-installed #canvas-container {
             height: 100% !important;
             flex: 1 !important;
         }
-        
+
         /* Media query override for PWA - force desktop layout regardless of screen width */
         @media (max-width: 768px) {
             body.pwa-installed #app-container,
@@ -1274,7 +1274,7 @@
                 /* These !important declarations ensure our desktop overrides take precedence */
                 all: revert !important;
             }
-            
+
             body.pwa-installed #header {
                 position: sticky !important;
                 top: 0 !important;
@@ -1288,18 +1288,18 @@
                 min-height: 50px !important;
                 padding: 10px !important;
             }
-            
+
             body.pwa-installed #app-container {
                 height: 100% !important;
                 flex-direction: column !important;
             }
-            
+
             body.pwa-installed #content-container {
                 flex: 1 !important;
                 flex-direction: row !important;
                 height: calc(100% - 60px) !important; /* Adjust based on header height */
             }
-            
+
             body.pwa-installed #toolbar {
                 width: 300px !important;
                 height: 100% !important;
@@ -1308,7 +1308,7 @@
                 border-right: 1px solid #333 !important;
                 border-bottom: none !important;
             }
-            
+
             body.pwa-installed #canvas-container {
                 height: 100% !important;
                 flex: 1 !important;
@@ -1323,7 +1323,7 @@
             <a href="privacy-policy.html" class="nav-link">Privacy Policy</a>
             <a href="contact.html" class="nav-link">Contact</a>
         </div>
-        
+
         <div id="header">
             <h1>ElementalBox</h1>
         </div>
@@ -1337,12 +1337,12 @@
                     <button id="reset-btn" class="action-btn warning" title="Clear the sandbox">Reset</button>
                     <input type="file" id="import-file" accept=".json" style="display:none">
                 </div>
-                
+
                 <div id="status-bar">
                     <span id="fps-counter">FPS: --</span>
                     <span id="particle-count">Particles: 0</span>
                 </div>
-                
+
                 <div class="brush-controls">
                     <div class="brush-size-container">
                         <label for="brush-size">Brush:</label>
@@ -1356,7 +1356,7 @@
                         <button id="no-boundaries-btn" class="action-btn">Remove Floor/Ceiling</button>
                     </div>
                 </div>
-                
+
                 <div class="tools-container">
                     <h3 class="category-heading">Environmental Tools</h3>
                     <div id="environmental-tools" class="environmental-tools">
@@ -1365,13 +1365,13 @@
                             <div class="tool-icon">🌬️</div>
                             <div class="tool-name">Wind</div>
                         </button>
-                        
+
                         <!-- Heat tool -->
                         <button id="heat-tool" class="env-tool-button" data-tool="heat" title="Heat - Increases temperature in an area">
                             <div class="tool-icon">🔥</div>
                             <div class="tool-name">Heat</div>
                         </button>
-                        
+
                         <!-- Cold tool -->
                         <button id="cold-tool" class="env-tool-button" data-tool="cold" title="Cold - Decreases temperature in an area">
                             <div class="tool-icon">❄️</div>
@@ -1379,9 +1379,9 @@
                         </button>
                     </div>
                 </div>
-                
+
                 <div id="element-buttons"></div>
-                
+
                 <div class="theme-toggle">
                     <label class="toggle-switch">
                         <input type="checkbox" id="dark-mode-toggle" checked>
@@ -1389,7 +1389,7 @@
                     </label>
                     <span>Dark Mode</span>
                 </div>
-                
+
                 <div class="display-options">
                     <h3 class="category-heading">Display Options</h3>
                     <div class="display-toggles">
@@ -1409,23 +1409,23 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Scroll-to-top button for mobile -->
                 <div id="scroll-to-top" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 99; cursor: pointer; background-color: rgba(0,0,0,0.5); width: 40px; height: 40px; border-radius: 50%; text-align: center; line-height: 40px; color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
                     ↑
                 </div>
             </div>
-            
+
             <div id="canvas-container">
                 <canvas id="sandbox"></canvas>
             </div>
-            
+
             <!-- Hidden Ad Blocker Bait Elements -->
             <div class="ad-bait" style="position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px;">
                 <div id="ad-slot" class="advertisement ad-placement adsbox"></div>
                 <ins class="adsbygoogle"></ins>
             </div>
-            
+
             <!-- Top Banner Ad Container - half size, positioned from middle to right -->
             <div id="top-ad-container">
                 <div class="ad-label">Advertisement</div>
@@ -1435,7 +1435,7 @@
                     640×100 Top Banner Ad
                 </div>
             </div>
-            
+
             <!-- Side Banner Ad Container -->
             <div id="side-ad-container">
                 <div class="ad-label">Advertisement</div>
@@ -1447,7 +1447,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Reset Confirmation Modal -->
     <div id="reset-modal" class="modal">
         <div class="modal-content">
@@ -1465,10 +1465,10 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Enhanced Notification System -->
     <div id="notification" class="notification"></div>
-    
+
     <!-- Ad Blocker Detection Overlay -->
     <div id="ad-blocker-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); z-index: 9999; color: white; text-align: center; padding-top: 20%;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #333; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
@@ -1482,11 +1482,11 @@
             <button id="refresh-btn" style="padding: 10px 20px; background-color: #00a8ff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">Refresh Page</button>
         </div>
     </div>
-    
+
     <!-- Load element scripts first -->
     <script src="scripts/element-registry.js"></script>
     <script src="scripts/element-loader.js"></script>
-    
+
     <!-- Load all element modules -->
     <script src="scripts/elements/sand.js"></script>
     <script src="scripts/elements/water.js"></script>
@@ -1499,6 +1499,7 @@
     <script src="scripts/elements/steel.js"></script>
     <script src="scripts/elements/oil.js"></script>
     <script src="scripts/elements/acid.js"></script>
+    <script src="scripts/elements/acid-gas.js"></script>
     <script src="scripts/elements/glass.js"></script>
     <script src="scripts/elements/glass-shard.js"></script>
     <script src="scripts/elements/static-charge.js"></script>
@@ -1536,10 +1537,10 @@
     <script src="scripts/elements/balloon.js"></script>
     <script src="scripts/elements/bubble.js"></script>
     <script src="scripts/elements/solid-salt.js"></script>
-    
+
     <!-- Register all elements (ensure all are properly loaded) -->
     <script src="scripts/register-elements.js"></script>
-    
+
     <!-- Load main.js last to ensure all other scripts are loaded first -->
     <script src="main.js"></script>
     <script>
@@ -1551,17 +1552,17 @@
                 document.body.classList.add('light-mode');
             }
         });
-        
+
         // Add scroll-to-top functionality for mobile
         document.addEventListener('DOMContentLoaded', function() {
             const toolbar = document.getElementById('toolbar');
             const scrollTopBtn = document.getElementById('scroll-to-top');
-            
+
             // Only show on mobile
             if (window.innerWidth <= 768) {
                 scrollTopBtn.style.display = 'block';
             }
-            
+
             // Show/hide button based on scroll position
             toolbar.addEventListener('scroll', function() {
                 if (toolbar.scrollTop > 200) {
@@ -1576,7 +1577,7 @@
                     }, 300);
                 }
             });
-            
+
             // Scroll to top when clicking the button
             scrollTopBtn.addEventListener('click', function() {
                 toolbar.scrollTo({
@@ -1584,7 +1585,7 @@
                     behavior: 'smooth'
                 });
             });
-            
+
             // Update button visibility on resize
             window.addEventListener('resize', function() {
                 if (window.innerWidth <= 768) {
@@ -1596,17 +1597,17 @@
                 }
             });
         });
-        
+
         // Ad Blocker Detection Script
         (function() {
             // Flag to prevent multiple detections
             let adBlockHandled = false;
-            
+
             // Create an invisible ad element to detect if it gets blocked
             function detectAdBlocker() {
                 // Skip if already handled
                 if (adBlockHandled) return;
-                
+
                 // Method 1: Basic element detection
                 const testAd = document.createElement('div');
                 testAd.className = 'adsbox';
@@ -1615,7 +1616,7 @@
                 testAd.style.opacity = '0';
                 testAd.style.top = '-999px';
                 document.body.appendChild(testAd);
-                
+
                 // Method 2: Create a bait element with ad-related names
                 const bait = document.createElement('div');
                 bait.id = 'ad-container';
@@ -1626,29 +1627,29 @@
                 bait.style.left = '-999px';
                 bait.style.top = '-999px';
                 document.body.appendChild(bait);
-                
+
                 // Check for ad blocker after a short delay
                 setTimeout(function() {
                     // If already handled, exit
                     if (adBlockHandled) {
                         return;
                     }
-                    
+
                     let adBlockDetected = false;
-                    
+
                     // Check if our test ad element was hidden by an ad blocker
-                    if (testAd.offsetHeight === 0 || 
-                        testAd.offsetParent === null || 
+                    if (testAd.offsetHeight === 0 ||
+                        testAd.offsetParent === null ||
                         window.getComputedStyle(testAd).display === 'none') {
                         adBlockDetected = true;
                     }
-                    
+
                     // Check if the bait element was affected by an ad blocker
                     if (window.getComputedStyle(bait).display === 'none' ||
                         bait.offsetParent === null) {
                         adBlockDetected = true;
                     }
-                    
+
                     // Clean up
                     try {
                         document.body.removeChild(testAd);
@@ -1656,7 +1657,7 @@
                     } catch (e) {
                         // Elements may have been removed by an ad blocker
                     }
-                    
+
                     if (adBlockDetected) {
                         handleAdBlockDetected();
                     } else {
@@ -1666,39 +1667,39 @@
                     }
                 }, 1000);
             }
-            
+
             // Handle detected ad blocker - only execute once
             function handleAdBlockDetected() {
                 if (adBlockHandled) return;
                 adBlockHandled = true;
-                
+
                 // Show the overlay
                 document.getElementById('ad-blocker-overlay').style.display = 'block';
-                
+
                 // Disable scrolling of the body
                 document.body.style.overflow = 'hidden';
-                
+
                 // Set up refresh button
                 document.getElementById('refresh-btn').addEventListener('click', function() {
                     window.location.reload();
                 });
-                
+
                 // Prevent interaction with the sandbox
                 const canvas = document.getElementById('sandbox');
                 if (canvas) {
                     // Disable the canvas
                     canvas.style.pointerEvents = 'none';
                 }
-                
+
                 console.log('Ad blocker detected! Site functionality limited.');
             }
-            
+
             // Check for ad blocker when the page loads
             window.addEventListener('load', function() {
                 // Delay the check to ensure UI is loaded first
                 setTimeout(detectAdBlocker, 1500);
             });
-            
+
             // Also check periodically, but less frequently
             setInterval(detectAdBlocker, 60000); // Check every minute instead of 30 seconds
         })();
