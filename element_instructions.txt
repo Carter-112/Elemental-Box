@@ -1,0 +1,81 @@
+Gas
+Definition: Gases float upward and some have different densities, meaning some float faster than others.
+Key Characteristics:
+• They move upward due to negative gravity.
+• Density affects their rising speed.
+• Some can transform based on temperature (e.g., steam to water, balloons to solid powder).
+• Examples: Fire, Smoke, Steam, Bubbles, Balloons.
+Solid
+Definition: Solids do not fall and keep their shape. They stay in place unless affected by special forces.
+Key Characteristics:
+• Do not respond to gravity.
+• Remain fixed in position unless directly modified (burned, melted, etc.).
+• May conduct things like electricity or fire depending on the element.
+• Examples: Brick, Steel, Wood, Battery, Wire.
+Solid Powder
+Definition: Solid powders fall downward under gravity, but do so with varying densities and speeds.
+Key Characteristics:
+• Behave like sand, falling down and forming piles.
+• Can spread or flow depending on density and surroundings.
+• Some react when touching other elements (e.g., bacteria eating, gunpowder exploding).
+• Examples: Bacteria, Explosive powder, Snow, Sand, Static charge.
+Liquid
+Definition: Liquids fall faster than powders, with different densities affecting their behavior.
+Key Characteristics:
+• Flow smoothly and settle at the bottom of the environment.
+• Can interact strongly with solids and powders (e.g., water freezing into ice).
+• May burn, melt, stick, or transform depending on temperature or other stimuli.
+• Examples: Water, Acid, Lava, Glue, Oil.
+Eraser
+• Eraser (Eraser): Eraser is a invisible thing with a outline that is affected by dark/light mode to be the opposite color of the screen that will erase whatever is is over in its radius.
+Solid Powder
+• Bacteria (Solid Powder): Bacteria is like a powder and if it touches anything that would be alive it slowly goes over it and slowly eats it and multiplys a little.
+• Fertilizer (Solid Powder): Fertilizer is plant food that makes plants grow faster then just touching only water.
+• Explosive powder (Solid Powder): Explosive powder is a highly explosive high blast radius that explodes when even very little heat.
+• Gunpowder (Solid Powder): Gunpowder same as explosive powder but less blast radius and needs more heat to blow up.
+• Glass shard (Solid Powder): Glass shard is a powder that can pop bubbles or balloons.
+• Salt (Solid Powder): Salt is a solid powder that turns into full solid salt with pressure.
+• Sand (Solid Powder): Sand is a powder that falls like any powder but turns into glass with a lot of heat.
+• Snow (Solid Powder): Snow is a powder that turns to ice with cold and turns to water with heat and water also melts it into water.
+Solid (non-powder)
+• Brick (Solid): Brick is solid and just a brick wall.
+• Fuse (Solid): Fuse is something that starts burning and sparking and produces a little smoke when any of it even touches a little heat it will go slowly from the heat point where it started to the end.
+• Glass (Solid): Glass see thru solid that sparks can travel across.
+• Ice (Solid): Ice is solid that slowly melts to water with heat and if water touches it will slowly turn that water to ice.
+• C4 (Solid): C4 is solid that explodes when enough heat touches it.
+• Crystal (Solid): Crystal is solid that grows over time in a crystal shape and grows faster when colder and slower when hotter and if hot enough will start to shatter slowly from the ends.
+• Dynamite (Solid): Dynamite is solid like c4 with much higher blast radius that also forms when pressure is on explosive powder so if a lot of particles r over it.
+• Metal (Solid): Metal is just another solid but sparks can travel across like it was glass.
+• Stone (Solid): Stone is also solid that turns to lava with insane extreme amounts of heat to even turn a little into it also doesnt melt with lava it just turns into lava instead of lava going str8 thru it.
+• Solid salt (Solid): Solid salt is a solid like any other.
+• Plant (Solid): Plant is a solid that only grows with water and if fertilizer is also touching will grow even faster also with a little of heat it will start on fire and burn up.
+• Resin (Solid): Resin is a solid like any solid.
+• Steel (Solid): Steel is solid just really hard.
+Gas
+• Fire (Gas): Fire is a gas that also produces smoke and the fire makes more heat the longer it is out also makes a little wind.
+• Bubbles (Gas): Bubbles is a gas that floats up can turn to solid for a bit if really cold and pops if really hot.
+• Balloons (Gas): Balloons are gas that floats up turns to solid powder so falls down when cold when warms up will float up again if too hot will pop.
+• Steam (Gas): Steam is gas and when cold turns to water.
+• Smoke (Gas): Smoke is a gas.
+Solid Infinity Spawners
+• Faucet (Solid): Faucet is a solid that will spawn water within it that falls from it.
+• Torch (Solid): Torch is like faucet but spawns fire on it that keeps spawning.
+Liquid
+• Acid (Liquid): Acid a liquid melts thru everything but steel and loses more and more of its liquid the more it melts stuff and produces acid gas when melting stuff.
+• Glue (Liquid): Glue very slow moving connected liquid that particles stick to also will turn solid with cold until warm up and nothing with heat also water will melt it.
+• Lava (Liquid): Lava melts thru everything like acid but does not lose any lava when melting stuff also gives all a shit ton of heat and a little wind also turns to stone with a insane amount of cold even then only a little does which will just turn back to lava if not cold enough.
+• Napalm (Liquid): Napalm is a liquid that burns on fire with no heat producing heat itself and only slows/stops fire with extreme amounts of cold also it is very sticky while being very liquidy and fast.
+• Oil (Liquid): Oil is liquid that burns when there's heat and burns until gone as it slowly gets less and less oil when burning.
+• Tar (Liquid): Tar is very slow liquid like glue but not sticky also very dense.
+• Water (Liquid): Water is liquid that turns to ice when very cold and steam when very hot.
+• Sludge (Liquid): Sludge is a dirty muddy liquid that moves slow and very dense.
+Electrical Stuff
+• Battery (Solid): Battery is solid and is power source that u connect to a wire.
+• Bulb (Solid): Bulb turns on and off if connected to power source with wire and has a switch that is set on.
+• Static charge (Solid Powder): Static charge electric intense temporary fast moving powder that flys in all directions and disappears very fast and isn't affected by gravity also makes a lot of heat very close to it can also end up on wire and give power.
+• Switch (Solid): Switch is a solid that connects to wire and if power on wire and if connected to built to will turn it on and off with a click all elements but the eraser will not spawn when mouse is over switch so it can register a click on the switch to actually click it.
+• Wire (Solid): Wire can attach to battery and/or bulb or/and switch and if it has power and switch is connected and bulb is it will turn bulb on when I turn switch on.
+Wood Stuff
+• Wood (Solid): Wood is solid that with some heat will start to burn red hot and very slowly spread that fire and start to turn red hot in after like 2 seconds will then turn to solid ash then after a second normal ash and fall.
+• Ash (Solid Powder): Ash is powder.
+• Solid ash (Solid): Solid ash is ash that is solid but not powder.  

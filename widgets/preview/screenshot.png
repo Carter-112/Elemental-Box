@@ -1,1 +1,64 @@
- 
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="600" height="400" fill="#121212" />
+  
+  <!-- Simulation area -->
+  <rect x="50" y="50" width="500" height="300" fill="#000000" rx="10" ry="10" />
+  
+  <!-- Sample particles -->
+  <!-- Sand particles -->
+  <circle cx="150" cy="250" r="3" fill="#e9c46a" />
+  <circle cx="160" cy="260" r="3" fill="#e9c46a" />
+  <circle cx="145" cy="265" r="3" fill="#e9c46a" />
+  <circle cx="155" cy="270" r="3" fill="#e9c46a" />
+  <circle cx="165" cy="275" r="3" fill="#e9c46a" />
+  <circle cx="170" cy="250" r="3" fill="#e9c46a" />
+  <circle cx="175" cy="260" r="3" fill="#e9c46a" />
+  <circle cx="180" cy="270" r="3" fill="#e9c46a" />
+  <circle cx="140" cy="280" r="3" fill="#e9c46a" />
+  <circle cx="150" cy="290" r="3" fill="#e9c46a" />
+  <circle cx="160" cy="300" r="3" fill="#e9c46a" />
+  <circle cx="170" cy="310" r="3" fill="#e9c46a" />
+  
+  <!-- Water particles -->
+  <circle cx="300" cy="280" r="4" fill="#3498db" opacity="0.8" />
+  <circle cx="310" cy="285" r="4" fill="#3498db" opacity="0.8" />
+  <circle cx="305" cy="290" r="4" fill="#3498db" opacity="0.8" />
+  <circle cx="315" cy="295" r="4" fill="#3498db" opacity="0.8" />
+  <circle cx="295" cy="300" r="4" fill="#3498db" opacity="0.8" />
+  <circle cx="305" cy="305" r="4" fill="#3498db" opacity="0.8" />
+  <circle cx="315" cy="310" r="4" fill="#3498db" opacity="0.8" />
+  <circle cx="325" cy="280" r="4" fill="#3498db" opacity="0.8" />
+  <circle cx="335" cy="285" r="4" fill="#3498db" opacity="0.8" />
+  <circle cx="330" cy="290" r="4" fill="#3498db" opacity="0.8" />
+  <circle cx="320" cy="295" r="4" fill="#3498db" opacity="0.8" />
+  <circle cx="330" cy="300" r="4" fill="#3498db" opacity="0.8" />
+  
+  <!-- Fire particles -->
+  <circle cx="450" cy="200" r="5" fill="#e74c3c" opacity="0.9" />
+  <circle cx="455" cy="190" r="4" fill="#e67e22" opacity="0.8" />
+  <circle cx="460" cy="180" r="3" fill="#f39c12" opacity="0.7" />
+  <circle cx="465" cy="170" r="2" fill="#f1c40f" opacity="0.6" />
+  <circle cx="445" cy="195" r="4" fill="#e67e22" opacity="0.8" />
+  <circle cx="440" cy="185" r="3" fill="#f39c12" opacity="0.7" />
+  <circle cx="435" cy="175" r="2" fill="#f1c40f" opacity="0.6" />
+  <circle cx="455" cy="210" r="5" fill="#e74c3c" opacity="0.9" />
+  <circle cx="460" cy="200" r="4" fill="#e67e22" opacity="0.8" />
+  <circle cx="465" cy="190" r="3" fill="#f39c12" opacity="0.7" />
+  <circle cx="470" cy="180" r="2" fill="#f1c40f" opacity="0.6" />
+  
+  <!-- Smoke particles -->
+  <circle cx="450" cy="160" r="4" fill="#7f8c8d" opacity="0.3" />
+  <circle cx="445" cy="150" r="5" fill="#7f8c8d" opacity="0.3" />
+  <circle cx="455" cy="140" r="6" fill="#7f8c8d" opacity="0.2" />
+  <circle cx="440" cy="130" r="7" fill="#7f8c8d" opacity="0.2" />
+  <circle cx="460" cy="120" r="8" fill="#7f8c8d" opacity="0.1" />
+  
+  <!-- Widget UI elements -->
+  <rect x="100" y="350" width="180" height="30" fill="#00a8ff" rx="5" ry="5" />
+  <text x="190" y="370" font-family="Arial" font-size="14" fill="white" text-anchor="middle">Open Simulation</text>
+  
+  <rect x="320" y="350" width="180" height="30" fill="#27ae60" rx="5" ry="5" />
+  <text x="410" y="370" font-family="Arial" font-size="14" fill="white" text-anchor="middle">New Simulation</text>
+</svg> 
